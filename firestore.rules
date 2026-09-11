@@ -1,0 +1,196 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper Functions
+    function isSignedIn() { return request.auth != null; }
+    function existing() { return resource.data; }
+    function incoming() { return request.resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    // Blueprint Validators
+    function isValidUserAccount(data) {
+      return data.keys().hasAll(['id', 'name', 'email', 'role', 'phone', 'status'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 128
+        && data.email is string && data.email.size() <= 128
+        && data.role in ["Quản trị viên", "Cửa hàng / Shop", "Quản lý xưởng", "Nhân viên giao hàng"]
+        && data.phone is string && data.phone.size() <= 32
+        && data.status in ["active", "inactive"];
+    }
+
+    function isValidShippingUnit(data) {
+      return data.keys().hasAll(['id', 'name', 'phone', 'createdBy'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 128
+        && data.phone is string && data.phone.size() <= 32
+        && data.createdBy is string && data.createdBy.size() <= 128;
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['id', 'name', 'createdBy', 'createdAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 128
+        && data.createdBy is string && data.createdBy.size() <= 128
+        && data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['id', 'name', 'salePrice', 'purchasePrice', 'unit', 'stock', 'status', 'createdBy', 'createdAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 256
+        && data.salePrice is number
+        && data.purchasePrice is number
+        && data.unit is string && data.unit.size() <= 32
+        && data.stock is number
+        && data.status in ["active", "inactive"]
+        && data.createdBy is string && data.createdBy.size() <= 128
+        && data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['id', 'customerId', 'supplierId', 'customerName', 'customerPhone', 'supplierName', 'orderDate', 'deliveryDate', 'status', 'address', 'isVATEnabled', 'shippingCost', 'createdBy'])
+        && data.id is string && data.id.size() <= 128
+        && data.customerId is string && data.customerId.size() <= 128
+        && data.supplierId is string && data.supplierId.size() <= 128
+        && data.customerName is string && data.customerName.size() <= 128
+        && data.customerPhone is string && data.customerPhone.size() <= 32
+        && data.supplierName is string && data.supplierName.size() <= 128
+        && data.orderDate is string && data.orderDate.size() <= 64
+        && data.deliveryDate is string && data.deliveryDate.size() <= 64
+        && data.status in ["Chờ xử lý", "Đang sản xuất", "Đang giao hàng", "Hoàn thành", "Đã hủy"]
+        && data.address is string && data.address.size() <= 512
+        && data.isVATEnabled is bool
+        && data.shippingCost is number
+        && data.createdBy is string && data.createdBy.size() <= 128
+        && (!('depositPaymentDate' in data) || (data.depositPaymentDate is string && data.depositPaymentDate.size() <= 64))
+        && (!('paymentDate' in data) || (data.paymentDate is string && data.paymentDate.size() <= 64))
+        && (!('invoiceDate' in data) || (data.invoiceDate is string && data.invoiceDate.size() <= 64))
+        && (!('finalPaymentInvoiceDate' in data) || (data.finalPaymentInvoiceDate is string && data.finalPaymentInvoiceDate.size() <= 64));
+    }
+
+    function isValidOrderItem(data) {
+      return data.keys().hasAll(['id', 'name', 'category', 'dimensions', 'quantity', 'salePrice', 'purchasePrice', 'unit'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 256
+        && data.category is string && data.category.size() <= 128
+        && data.dimensions is string && data.dimensions.size() <= 128
+        && data.quantity is number
+        && data.salePrice is number
+        && data.purchasePrice is number
+        && data.unit is string && data.unit.size() <= 32;
+    }
+
+    function isValidHandoverMedia(data) {
+      return data.keys().hasAll(['id', 'type', 'url', 'timestamp'])
+        && data.id is string && data.id.size() <= 128
+        && data.type in ["image", "video"]
+        && data.url is string && data.url.size() <= 1024000
+        && data.timestamp is string && data.timestamp.size() <= 64;
+    }
+
+    function isValidCustomer(data) {
+      return data.keys().hasAll(['id', 'name', 'phone', 'address', 'createdBy'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 128
+        && data.phone is string && data.phone.size() <= 32
+        && data.address is string && data.address.size() <= 512
+        && data.createdBy is string && data.createdBy.size() <= 128;
+    }
+
+    function isValidSupplier(data) {
+      return data.keys().hasAll(['id', 'name', 'phone', 'address', 'createdBy'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 128
+        && data.phone is string && data.phone.size() <= 32
+        && data.address is string && data.address.size() <= 512
+        && data.createdBy is string && data.createdBy.size() <= 128;
+    }
+
+    function isValidCompanySettings(data) {
+      return data.keys().hasAll(['name', 'contactPerson', 'taxCode', 'address', 'email', 'bankAccount', 'bankName', 'phone'])
+        && data.name is string && data.name.size() <= 128
+        && data.contactPerson is string && data.contactPerson.size() <= 128
+        && data.taxCode is string && data.taxCode.size() <= 64
+        && data.address is string && data.address.size() <= 512
+        && data.email is string && data.email.size() <= 128
+        && data.bankAccount is string && data.bankAccount.size() <= 64
+        && data.bankName is string && data.bankName.size() <= 128
+        && data.phone is string && data.phone.size() <= 32;
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(userId) && isValidUserAccount(incoming());
+      allow update: if isSignedIn() && isValidId(userId) && isValidUserAccount(incoming());
+      allow delete: if isSignedIn() && isValidId(userId);
+    }
+    
+    match /shippingUnits/{unitId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(unitId) && isValidShippingUnit(incoming());
+      allow update: if isSignedIn() && isValidId(unitId) && isValidShippingUnit(incoming());
+      allow delete: if isSignedIn() && isValidId(unitId);
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(categoryId) && isValidCategory(incoming());
+      allow update: if isSignedIn() && isValidId(categoryId) && isValidCategory(incoming());
+      allow delete: if isSignedIn() && isValidId(categoryId);
+    }
+
+    match /products/{productId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(productId) && isValidProduct(incoming());
+      allow update: if isSignedIn() && isValidId(productId) && isValidProduct(incoming());
+      allow delete: if isSignedIn() && isValidId(productId);
+    }
+
+    match /orders/{orderId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(orderId) && isValidOrder(incoming());
+      allow update: if isSignedIn() && isValidId(orderId) && isValidOrder(incoming());
+      allow delete: if isSignedIn() && isValidId(orderId);
+      
+      match /items/{itemId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && isValidId(itemId) && isValidOrderItem(incoming());
+        allow update: if isSignedIn() && isValidId(itemId) && isValidOrderItem(incoming());
+        allow delete: if isSignedIn() && isValidId(itemId);
+      }
+      
+      match /media/{mediaId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && isValidId(mediaId) && isValidHandoverMedia(incoming());
+        allow update: if isSignedIn() && isValidId(mediaId) && isValidHandoverMedia(incoming());
+        allow delete: if isSignedIn() && isValidId(mediaId);
+      }
+    }
+
+    match /customers/{customerId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(customerId) && isValidCustomer(incoming());
+      allow update: if isSignedIn() && isValidId(customerId) && isValidCustomer(incoming());
+      allow delete: if isSignedIn() && isValidId(customerId);
+    }
+
+    match /suppliers/{supplierId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(supplierId) && isValidSupplier(incoming());
+      allow update: if isSignedIn() && isValidId(supplierId) && isValidSupplier(incoming());
+      allow delete: if isSignedIn() && isValidId(supplierId);
+    }
+
+    match /settings/{settingId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(settingId) && isValidCompanySettings(incoming());
+      allow update: if isSignedIn() && isValidId(settingId) && isValidCompanySettings(incoming());
+      allow delete: if isSignedIn() && isValidId(settingId);
+    }
+  }
+}

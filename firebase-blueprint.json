@@ -1,0 +1,250 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "User Account",
+      "description": "User profile with role-based access",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 128 },
+        "role": { "type": "string", "enum": ["Quản trị viên", "Cửa hàng / Shop", "Quản lý xưởng", "Nhân viên giao hàng"] },
+        "avatar": { "type": "string", "maxLength": 1024 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "status": { "type": "string", "enum": ["active", "inactive"] }
+      },
+      "required": ["id", "name", "email", "role", "phone", "status"]
+    },
+    "ShippingUnit": {
+      "title": "Shipping Unit",
+      "description": "Logistics and delivery partner details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "contactPerson": { "type": "string", "maxLength": 128 },
+        "address": { "type": "string", "maxLength": 512 },
+        "rating": { "type": "number" },
+        "extraInfo": { "type": "string", "maxLength": 1024 },
+        "createdBy": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["id", "name", "phone", "createdBy"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Product category",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "parentId": { "type": "string", "maxLength": 128 },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "description": { "type": "string", "maxLength": 1024 }
+      },
+      "required": ["id", "name", "createdBy", "createdAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Inventory product item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 256 },
+        "barcode": { "type": "string", "maxLength": 64 },
+        "categoryId": { "type": "string", "maxLength": 128 },
+        "categoryName": { "type": "string", "maxLength": 128 },
+        "dimensions": { "type": "string", "maxLength": 128 },
+        "salePrice": { "type": "number" },
+        "purchasePrice": { "type": "number" },
+        "unit": { "type": "string", "maxLength": 32 },
+        "imageUrl": { "type": "string", "maxLength": 1024000 },
+        "description": { "type": "string", "maxLength": 2048 },
+        "color": { "type": "string", "maxLength": 64 },
+        "stock": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "name", "salePrice", "purchasePrice", "unit", "stock", "status", "createdBy", "createdAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "customerId": { "type": "string", "maxLength": 128 },
+        "supplierId": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "maxLength": 128 },
+        "customerPhone": { "type": "string", "maxLength": 32 },
+        "customerEmail": { "type": "string", "maxLength": 128 },
+        "customerID": { "type": "string", "maxLength": 64 },
+        "customerCompanyName": { "type": "string", "maxLength": 256 },
+        "customerTaxCode": { "type": "string", "maxLength": 64 },
+        "supplierName": { "type": "string", "maxLength": 128 },
+        "supplierPhone": { "type": "string", "maxLength": 32 },
+        "supplierAddress": { "type": "string", "maxLength": 512 },
+        "orderDate": { "type": "string", "maxLength": 64 },
+        "deliveryDate": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["Chờ xử lý", "Đang sản xuất", "Đang giao hàng", "Hoàn thành", "Đã hủy"] },
+        "notes": { "type": "string", "maxLength": 2048 },
+        "depositAmount": { "type": "number" },
+        "address": { "type": "string", "maxLength": 512 },
+        "isVATEnabled": { "type": "boolean" },
+        "vatRate": { "type": "number" },
+        "shippingCost": { "type": "number" },
+        "shippingUnitId": { "type": "string", "maxLength": 128 },
+        "shippingUnitName": { "type": "string", "maxLength": 128 },
+        "shippingUnitPhone": { "type": "string", "maxLength": 32 },
+        "isCODEnabled": { "type": "boolean" },
+        "codAmount": { "type": "number" },
+        "isSupplierPaid": { "type": "boolean" },
+        "isShippingPaid": { "type": "boolean" },
+        "depositPaymentDate": { "type": "string", "maxLength": 64 },
+        "paymentDate": { "type": "string", "maxLength": 64 },
+        "invoiceDate": { "type": "string", "maxLength": 64 },
+        "finalPaymentInvoiceDate": { "type": "string", "maxLength": 64 },
+        "createdBy": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["id", "customerId", "supplierId", "customerName", "customerPhone", "supplierName", "orderDate", "deliveryDate", "status", "address", "isVATEnabled", "shippingCost", "createdBy"]
+    },
+    "OrderItem": {
+      "title": "Order Item",
+      "description": "Item in an order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 256 },
+        "productId": { "type": "string", "maxLength": 128 },
+        "category": { "type": "string", "maxLength": 128 },
+        "dimensions": { "type": "string", "maxLength": 128 },
+        "quantity": { "type": "number" },
+        "salePrice": { "type": "number" },
+        "purchasePrice": { "type": "number" },
+        "imageUrl": { "type": "string", "maxLength": 1024000 },
+        "unit": { "type": "string", "maxLength": 32 },
+        "color": { "type": "string", "maxLength": 64 },
+        "options": { "type": "string", "maxLength": 512 },
+        "productionNote": { "type": "string", "maxLength": 1024 }
+      },
+      "required": ["id", "name", "category", "dimensions", "quantity", "salePrice", "purchasePrice", "unit"]
+    },
+    "HandoverMedia": {
+      "title": "Handover Media",
+      "description": "Media attached to an order handover",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "enum": ["image", "video"] },
+        "url": { "type": "string", "maxLength": 1024000 },
+        "timestamp": { "type": "string", "maxLength": 64 },
+        "note": { "type": "string", "maxLength": 1024 },
+        "optimizedUrl": { "type": "string", "maxLength": 1024000 },
+        "thumbUrl": { "type": "string", "maxLength": 1024000 }
+      },
+      "required": ["id", "type", "url", "timestamp"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Client profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "companyName": { "type": "string", "maxLength": 256 },
+        "taxCode": { "type": "string", "maxLength": 64 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "email": { "type": "string", "maxLength": 128 },
+        "idCard": { "type": "string", "maxLength": 64 },
+        "address": { "type": "string", "maxLength": 512 },
+        "bankAccount": { "type": "string", "maxLength": 64 },
+        "bankName": { "type": "string", "maxLength": 128 },
+        "note": { "type": "string", "maxLength": 2048 },
+        "extraInfo": { "type": "string", "maxLength": 2048 },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "createdBy": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["id", "name", "phone", "address", "createdBy"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Production or material supplier",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "companyName": { "type": "string", "maxLength": 256 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "address": { "type": "string", "maxLength": 512 },
+        "taxCode": { "type": "string", "maxLength": 64 },
+        "bankAccount": { "type": "string", "maxLength": 64 },
+        "bankName": { "type": "string", "maxLength": 128 },
+        "note": { "type": "string", "maxLength": 2048 },
+        "extraInfo": { "type": "string", "maxLength": 2048 },
+        "createdBy": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["id", "name", "phone", "address", "createdBy"]
+    },
+    "CompanySettings": {
+      "title": "Company Settings",
+      "description": "Global company settings",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 128 },
+        "contactPerson": { "type": "string", "maxLength": 128 },
+        "taxCode": { "type": "string", "maxLength": 64 },
+        "address": { "type": "string", "maxLength": 512 },
+        "email": { "type": "string", "maxLength": 128 },
+        "bankAccount": { "type": "string", "maxLength": 64 },
+        "bankName": { "type": "string", "maxLength": 128 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "logoUrl": { "type": "string", "maxLength": 1024000 }
+      },
+      "required": ["name", "contactPerson", "taxCode", "address", "email", "bankAccount", "bankName", "phone"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/UserAccount" },
+      "description": "User accounts"
+    },
+    "shippingUnits/{unitId}": {
+      "schema": { "$ref": "#/entities/ShippingUnit" },
+      "description": "Shipping units"
+    },
+    "categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Product categories"
+    },
+    "products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Products"
+    },
+    "orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Orders"
+    },
+    "orders/{orderId}/items/{itemId}": {
+      "schema": { "$ref": "#/entities/OrderItem" },
+      "description": "Order items"
+    },
+    "orders/{orderId}/media/{mediaId}": {
+      "schema": { "$ref": "#/entities/HandoverMedia" },
+      "description": "Order handover media"
+    },
+    "customers/{customerId}": {
+      "schema": { "$ref": "#/entities/Customer" },
+      "description": "Customers"
+    },
+    "suppliers/{supplierId}": {
+      "schema": { "$ref": "#/entities/Supplier" },
+      "description": "Suppliers"
+    },
+    "settings/{settingId}": {
+      "schema": { "$ref": "#/entities/CompanySettings" },
+      "description": "System settings (usually just one doc)"
+    }
+  }
+}
