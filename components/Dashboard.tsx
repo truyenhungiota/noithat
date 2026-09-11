@@ -20,9 +20,9 @@ const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
     acc.cost += costTotal;
     acc.profit += (saleTotal - costTotal);
     
-    if (order.status === OrderStatus.COMPLETED) acc.completed++;
+    if (order.status === OrderStatus.COMPLETED || order.status === OrderStatus.PAID) acc.completed++;
     if (order.status === OrderStatus.PENDING) acc.pending++;
-    if (order.status === OrderStatus.PRODUCTION) acc.production++;
+    if (order.status === OrderStatus.PROCESSING) acc.production++;
     if (order.status === OrderStatus.SHIPPING) acc.shipping++;
     
     return acc;

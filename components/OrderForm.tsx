@@ -177,6 +177,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ order, customers, suppliers, ship
   const getStatusColor = (status: OrderStatus) => {
     switch (status) {
       case OrderStatus.COMPLETED: return 'text-emerald-600';
+      case OrderStatus.PAID: return 'text-green-500';
       case OrderStatus.PROCESSING: return 'text-amber-600';
       case OrderStatus.SHIPPING: return 'text-blue-600';
       case OrderStatus.CANCELLED: return 'text-red-600';

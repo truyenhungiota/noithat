@@ -28,10 +28,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister }) => {
       try {
         userCredential = await signInWithEmailAndPassword(auth, email, password);
       } catch (signInErr: any) {
-        if (signInErr.code === 'auth/invalid-credential' || signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-email') {
+        // Firebase Auth error codes for wrong password or user not found
+        if (signInErr.code === 'auth/invalid-credential' || signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/wrong-password') {
             try {
+                // If sign in fails, try to create the account instead
                 userCredential = await createUserWithEmailAndPassword(auth, email, password);
             } catch (createErr: any) {
+                // If creation fails because email exists, it means the user actually just typed the wrong password
+                if (createErr.code === 'auth/email-already-in-use') {
+                    throw new Error('Sai mật khẩu! Vui lòng thử lại.');
+                }
                 throw createErr;
             }
         } else {

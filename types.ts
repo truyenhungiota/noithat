@@ -4,6 +4,7 @@ export enum OrderStatus {
   PROCESSING = 'Đang sản xuất',
   SHIPPING = 'Đang giao hàng',
   COMPLETED = 'Hoàn thành',
+  PAID = 'Đã thanh toán',
   CANCELLED = 'Đã hủy'
 }
 
