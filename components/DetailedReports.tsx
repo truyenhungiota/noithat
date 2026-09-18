@@ -123,39 +123,133 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
     }).sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
   }, [orders, startDate, endDate, selectedSupplierId, selectedShippingId, availableSuppliers, isAdmin, currentUser, selectedShopId, supplierPaymentFilter, shippingPaymentFilter, statusFilter]);
 
+  const exportFinanceReportToExcel = () => {
+    const wb = XLSX.utils.book_new();
+
+    const headers = [
+      "Ngày đơn",
+      "Mã đơn",
+      "Khách hàng",
+      "Nhà xưởng",
+      "Thanh toán Xưởng",
+      "Đơn vị giao",
+      "Thanh toán Ship",
+      "Doanh thu (VNĐ)",
+      "Giá nhập (VNĐ)",
+      "Phí VC xưởng (VNĐ)",
+      "Lợi nhuận (VNĐ)",
+      "Trạng thái"
+    ];
+
+    const rows = mainFilteredData.map(order => {
+      const saleSubtotal = (order.items || []).reduce((s, i) => s + ((Number(i.salePrice) || 0) * (Number(i.quantity) || 0)), 0);
+      const purchase = (order.items || []).reduce((s, i) => s + ((Number(i.purchasePrice) || 0) * (Number(i.quantity) || 0)), 0);
+      const factoryShipping = Number(order.factoryShippingCost) || 0;
+      const customerShipping = Number(order.shippingCost) || 0;
+      const revenue = saleSubtotal + customerShipping;
+      const profit = revenue - purchase - factoryShipping;
+
+      return [
+        new Date(order.orderDate).toLocaleDateString('vi-VN'),
+        order.id,
+        order.customerName,
+        order.supplierName,
+        order.isSupplierPaid ? "Đã thanh toán" : "Chưa thanh toán",
+        order.shippingUnitName || 'Tự giao',
+        order.isShippingPaid ? "Đã thanh toán" : "Chưa thanh toán",
+        revenue,
+        purchase,
+        factoryShipping,
+        profit,
+        order.status
+      ];
+    });
+
+    const summaryRow = [
+      "TỔNG CỘNG",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      reportStats.totalSalePrice,
+      reportStats.totalPurchasePrice,
+      reportStats.totalShipping,
+      reportStats.totalProfit,
+      ""
+    ];
+
+    const worksheetData = [headers, ...rows, summaryRow];
+    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+
+    ws['!cols'] = [
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 25 },
+      { wch: 22 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 16 },
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Báo cáo chung");
+    XLSX.writeFile(wb, `Bao_cao_chung_HungIota_${new Date().getTime()}.xlsx`);
+  };
+
   const exportToExcel = () => {
     // Xuất CSV hỗ trợ tiếng Việt (BOM UTF-8)
-    const headers = ["Ngày đơn", "Mã đơn", "Khách hàng", "Nhà xưởng", "Thanh toán Xưởng", "Đơn vị giao", "Thanh toán Ship", "Giá nhập (VNĐ)", "Phí VC xưởng (VNĐ)", "Doanh thu (VNĐ)", "Lợi nhuận (VNĐ)", "Trạng thái"];
+    const headers = ["Ngày đơn", "Mã đơn", "Khách hàng", "Nhà xưởng", "Thanh toán Xưởng", "Đơn vị giao", "Thanh toán Ship", "Doanh thu (VNĐ)", "Giá nhập (VNĐ)", "Phí VC xưởng (VNĐ)", "Lợi nhuận (VNĐ)", "Trạng thái"];
     const rows = mainFilteredData.map(order => {
-      const saleSubtotal = order.items.reduce((s, i) => s + (i.salePrice * i.quantity), 0);
-      const purchase = order.items.reduce((s, i) => s + (i.purchasePrice * i.quantity), 0);
-      const factoryShipping = order.factoryShippingCost || 0;
-      const customerShipping = order.shippingCost || 0;
+      const saleSubtotal = (order.items || []).reduce((s, i) => s + ((Number(i.salePrice) || 0) * (Number(i.quantity) || 0)), 0);
+      const purchase = (order.items || []).reduce((s, i) => s + ((Number(i.purchasePrice) || 0) * (Number(i.quantity) || 0)), 0);
+      const factoryShipping = Number(order.factoryShippingCost) || 0;
+      const customerShipping = Number(order.shippingCost) || 0;
       const revenue = saleSubtotal + customerShipping;
       const profit = revenue - purchase - factoryShipping;
       
       return [
         new Date(order.orderDate).toLocaleDateString('vi-VN'),
         order.id,
-        order.customerName,
-        order.supplierName,
-        order.isSupplierPaid ? "Đã trả" : "Chưa trả",
-        order.shippingUnitName || 'Tự giao',
-        order.isShippingPaid ? "Đã trả" : "Chưa trả",
+        `"${(order.customerName || '').replace(/"/g, '""')}"`,
+        `"${(order.supplierName || '').replace(/"/g, '""')}"`,
+        order.isSupplierPaid ? "Đã thanh toán" : "Chưa thanh toán",
+        `"${(order.shippingUnitName || 'Tự giao').replace(/"/g, '""')}"`,
+        order.isShippingPaid ? "Đã thanh toán" : "Chưa thanh toán",
+        revenue,
         purchase,
         factoryShipping,
-        revenue,
         profit,
         order.status
       ];
     });
 
-    const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.join(",")).join("\n");
+    const summaryRow = [
+      `"TỔNG CỘNG"`,
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      reportStats.totalSalePrice,
+      reportStats.totalPurchasePrice,
+      reportStats.totalShipping,
+      reportStats.totalProfit,
+      ""
+    ];
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(e => e.join(",")), summaryRow.join(",")].join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `Bao_cao_chi_tiet_${new Date().getTime()}.csv`);
+    link.setAttribute("download", `Bao_cao_chung_${new Date().getTime()}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -687,21 +781,23 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
 
   // Thống kê theo từng nhà xưởng (chỉ tính các xưởng được phép xem)
   const supplierBreakdown = useMemo(() => {
-    const breakdown: Record<string, { id: string, name: string, totalOrders: number, purchaseAmount: number, saleAmount: number, unpaidAmount: number }> = {};
+    const breakdown: Record<string, { id: string, name: string, totalOrders: number, purchaseAmount: number, saleAmount: number, factoryShippingAmount: number, unpaidAmount: number }> = {};
     
     availableSuppliers.forEach(s => {
-      breakdown[s.id] = { id: s.id, name: s.companyName || s.name, totalOrders: 0, purchaseAmount: 0, saleAmount: 0, unpaidAmount: 0 };
+      breakdown[s.id] = { id: s.id, name: s.companyName || s.name, totalOrders: 0, purchaseAmount: 0, saleAmount: 0, factoryShippingAmount: 0, unpaidAmount: 0 };
     });
 
     mainFilteredData.forEach(order => {
       const sId = order.supplierId;
-      const sale = order.items.reduce((sum, i) => sum + (i.salePrice * i.quantity), 0);
-      const purchase = order.items.reduce((sum, i) => sum + (i.purchasePrice * i.quantity), 0);
+      const sale = (order.items || []).reduce((sum, i) => sum + ((Number(i.salePrice) || 0) * (Number(i.quantity) || 0)), 0);
+      const purchase = (order.items || []).reduce((sum, i) => sum + ((Number(i.purchasePrice) || 0) * (Number(i.quantity) || 0)), 0);
+      const factoryShipping = Number(order.factoryShippingCost) || 0;
       
       if (breakdown[sId]) {
         breakdown[sId].totalOrders++;
         breakdown[sId].purchaseAmount += purchase;
         breakdown[sId].saleAmount += sale;
+        breakdown[sId].factoryShippingAmount += factoryShipping;
         if (!order.isSupplierPaid) {
             breakdown[sId].unpaidAmount += purchase;
         }
@@ -713,17 +809,20 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
 
   const reportStats = useMemo(() => {
     return mainFilteredData.reduce((acc, order) => {
-      const saleSubtotal = order.items.reduce((sum, i) => sum + (i.salePrice * i.quantity), 0);
-      const purchaseSubtotal = order.items.reduce((sum, i) => sum + (i.purchasePrice * i.quantity), 0);
-      const factoryShipping = order.factoryShippingCost || 0;
-      const customerShipping = order.shippingCost || 0;
+      const saleSubtotal = (order.items || []).reduce((sum, i) => sum + ((Number(i.salePrice) || 0) * (Number(i.quantity) || 0)), 0);
+      const purchaseSubtotal = (order.items || []).reduce((sum, i) => sum + ((Number(i.purchasePrice) || 0) * (Number(i.quantity) || 0)), 0);
+      const factoryShipping = Number(order.factoryShippingCost) || 0;
+      const customerShipping = Number(order.shippingCost) || 0;
       
+      // Doanh thu đơn hàng (tiền bán hàng + tiền ship khách trả nếu có)
       const revenue = saleSubtotal + customerShipping;
+      // Lợi nhuận = Doanh thu - tiền giá nhập đơn hàng - phí vận chuyển xưởng
+      const profit = revenue - purchaseSubtotal - factoryShipping;
       
       acc.totalSalePrice += revenue;
       acc.totalPurchasePrice += purchaseSubtotal;
-      acc.totalProfit += (revenue - purchaseSubtotal - factoryShipping);
       acc.totalShipping += factoryShipping;
+      acc.totalProfit += profit;
 
       if (!order.isSupplierPaid) acc.totalUnpaidSupplier += purchaseSubtotal;
       if (!order.isShippingPaid) acc.totalUnpaidShipping += factoryShipping;
@@ -824,16 +923,10 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4 border-t border-slate-50">
-            <div className="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100/50 flex flex-col items-center text-center relative overflow-hidden">
-              <Truck className="w-8 h-8 text-indigo-500 mb-3" />
-              <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Phí VC Xưởng</p>
-              <p className="text-xl font-black text-slate-900 mt-1 tabular-nums">{reportStats.totalShipping.toLocaleString()}đ</p>
-              {reportStats.totalUnpaidShipping > 0 && (
-                 <div className="mt-2 px-3 py-1 bg-red-100 rounded-lg flex items-center gap-1.5">
-                    <AlertCircle className="w-3 h-3 text-red-600" />
-                    <span className="text-[9px] font-bold text-red-600 uppercase">Nợ tồn: {reportStats.totalUnpaidShipping.toLocaleString()}đ</span>
-                 </div>
-              )}
+            <div className="bg-blue-50/50 p-6 rounded-3xl border border-blue-100/50 flex flex-col items-center text-center">
+              <DollarSign className="w-8 h-8 text-blue-500 mb-3" />
+              <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Tổng doanh thu</p>
+              <p className="text-xl font-black text-blue-700 mt-1 tabular-nums">{reportStats.totalSalePrice.toLocaleString()}đ</p>
             </div>
             <div className="bg-amber-50/50 p-6 rounded-3xl border border-amber-100/50 flex flex-col items-center text-center">
               <Factory className="w-8 h-8 text-amber-500 mb-3" />
@@ -846,15 +939,24 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                  </div>
               )}
             </div>
-            <div className="bg-blue-50/50 p-6 rounded-3xl border border-blue-100/50 flex flex-col items-center text-center">
-              <DollarSign className="w-8 h-8 text-blue-500 mb-3" />
-              <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Tổng doanh thu</p>
-              <p className="text-xl font-black text-slate-900 mt-1 tabular-nums">{reportStats.totalSalePrice.toLocaleString()}đ</p>
+            <div className="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100/50 flex flex-col items-center text-center relative overflow-hidden">
+              <Truck className="w-8 h-8 text-indigo-500 mb-3" />
+              <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Phí VC Xưởng</p>
+              <p className="text-xl font-black text-slate-900 mt-1 tabular-nums">{reportStats.totalShipping.toLocaleString()}đ</p>
+              {reportStats.totalUnpaidShipping > 0 && (
+                 <div className="mt-2 px-3 py-1 bg-red-100 rounded-lg flex items-center gap-1.5">
+                    <AlertCircle className="w-3 h-3 text-red-600" />
+                    <span className="text-[9px] font-bold text-red-600 uppercase">Nợ tồn: {reportStats.totalUnpaidShipping.toLocaleString()}đ</span>
+                 </div>
+              )}
             </div>
             <div className="bg-emerald-50/50 p-6 rounded-3xl border border-emerald-100/50 flex flex-col items-center text-center">
               <TrendingUp className="w-8 h-8 text-emerald-500 mb-3" />
               <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Lợi nhuận gộp</p>
-              <p className="text-xl font-black text-emerald-700 mt-1 tabular-nums">+{reportStats.totalProfit.toLocaleString()}đ</p>
+              <p className={`text-xl font-black mt-1 tabular-nums ${reportStats.totalProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                {reportStats.totalProfit >= 0 ? '+' : ''}{reportStats.totalProfit.toLocaleString()}đ
+              </p>
+              <span className="text-[9px] font-semibold text-slate-400 mt-1.5 tracking-tight">(Doanh thu - Giá nhập - Phí VC)</span>
             </div>
         </div>
       </div>
@@ -879,7 +981,7 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                 ) : activeSubTab === 'excelExport' ? (
                   <FileSpreadsheet className="w-6 h-6" />
                 ) : activeSubTab === 'finance' ? (
-                  <List className="w-6 h-6" />
+                  <DollarSign className="w-6 h-6" />
                 ) : activeSubTab === 'factoryShipping' ? (
                   <Truck className="w-6 h-6" />
                 ) : (
@@ -893,7 +995,7 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                    : activeSubTab === 'excelExport'
                    ? 'Báo cáo bán hàng'
                    : activeSubTab === 'finance'
-                   ? 'Bảng kê chi tiết'
+                   ? 'Bảng kê chi tiết tài chính'
                    : activeSubTab === 'factoryShipping'
                    ? 'Báo cáo phí VC xưởng'
                    : 'Hiệu suất nhà xưởng'}
@@ -905,7 +1007,7 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                    ? `Tổng cộng ${productReportData.length} dòng đơn hàng bán | ${productStats.totalQty} cái | Tổng tiền: ${productStats.totalAmount.toLocaleString()} đ` 
                    : activeSubTab === 'factoryShipping'
                    ? `Tổng cộng ${mainFilteredData.filter(o => o.factoryShippingCost && o.factoryShippingCost > 0).length} đơn hàng có phí VC | Tổng phí: ${mainFilteredData.reduce((sum, o) => sum + (o.factoryShippingCost || 0), 0).toLocaleString()} đ`
-                   : `Hiển thị ${mainFilteredData.length} kết quả`}
+                   : `Tổng cộng ${mainFilteredData.length} đơn | Doanh thu: ${reportStats.totalSalePrice.toLocaleString()} đ | Giá nhập: ${reportStats.totalPurchasePrice.toLocaleString()} đ | Phí VC: ${reportStats.totalShipping.toLocaleString()} đ | Lợi nhuận: ${reportStats.totalProfit.toLocaleString()} đ`}
                </p>
              </div>
           </div>
@@ -936,10 +1038,13 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
               </>
             ) : (
               <>
-                <button onClick={exportToExcel} className="flex-1 md:flex-none justify-center px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition flex items-center gap-2 shadow-lg shadow-emerald-100">
-                  <FileSpreadsheet className="w-4 h-4" /> Xuất Excel
+                <button onClick={exportFinanceReportToExcel} className="flex-1 md:flex-none justify-center px-5 py-2.5 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition flex items-center gap-2 shadow-lg shadow-blue-200 active:scale-95">
+                  <FileSpreadsheet className="w-4 h-4" /> Xuất file Excel (.xlsx)
                 </button>
-                <button onClick={() => window.print()} className="flex-1 md:flex-none justify-center px-6 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition flex items-center gap-2">
+                <button onClick={exportToExcel} className="flex-1 md:flex-none justify-center px-4 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition flex items-center gap-2 active:scale-95">
+                  <Download className="w-4 h-4" /> Xuất CSV
+                </button>
+                <button onClick={() => window.print()} className="flex-1 md:flex-none justify-center px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition flex items-center gap-2">
                   <Printer className="w-4 h-4" /> In
                 </button>
               </>
@@ -960,18 +1065,18 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                     <th className="px-6 py-4 text-center">TT Xưởng</th>
                     <th className="px-6 py-4">Đơn vị giao</th>
                     <th className="px-6 py-4 text-center">TT Ship</th>
+                    <th className="px-6 py-4 text-right">Doanh thu</th>
                     <th className="px-6 py-4 text-right">Giá nhập</th>
                     <th className="px-6 py-4 text-right">Phí VC xưởng</th>
-                    <th className="px-6 py-4 text-right">Doanh thu</th>
                     <th className="px-6 py-4 text-right">Lợi nhuận</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {paginatedOrders.map(order => {
-                    const saleSubtotal = order.items.reduce((s, i) => s + (i.salePrice * i.quantity), 0);
-                    const purchase = order.items.reduce((s, i) => s + (i.purchasePrice * i.quantity), 0);
-                    const factoryShipping = order.factoryShippingCost || 0;
-                    const customerShipping = order.shippingCost || 0;
+                    const saleSubtotal = (order.items || []).reduce((s, i) => s + ((Number(i.salePrice) || 0) * (Number(i.quantity) || 0)), 0);
+                    const purchase = (order.items || []).reduce((s, i) => s + ((Number(i.purchasePrice) || 0) * (Number(i.quantity) || 0)), 0);
+                    const factoryShipping = Number(order.factoryShippingCost) || 0;
+                    const customerShipping = Number(order.shippingCost) || 0;
                     
                     const revenue = saleSubtotal + customerShipping;
                     const profit = revenue - purchase - factoryShipping;
@@ -1003,10 +1108,10 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                              <span className="flex justify-center text-slate-300" title="Chưa thanh toán"><Circle className="w-4 h-4" /></span>
                            )}
                         </td>
-                        <td className="px-6 py-5 text-right font-medium text-slate-400 tabular-nums">{purchase.toLocaleString()}đ</td>
-                        <td className="px-6 py-5 text-right font-medium text-indigo-400 tabular-nums">{factoryShipping.toLocaleString()}đ</td>
-                        <td className="px-6 py-5 text-right font-black text-slate-900 tabular-nums">{revenue.toLocaleString()}đ</td>
-                        <td className={`px-6 py-5 text-right font-black tabular-nums ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                        <td className="px-6 py-5 text-right font-black text-blue-700 tabular-nums">{revenue.toLocaleString()}đ</td>
+                        <td className="px-6 py-5 text-right font-medium text-amber-700 tabular-nums">{purchase.toLocaleString()}đ</td>
+                        <td className="px-6 py-5 text-right font-medium text-indigo-600 tabular-nums">{factoryShipping.toLocaleString()}đ</td>
+                        <td className={`px-6 py-5 text-right font-black tabular-nums ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`} title="Doanh thu - Giá nhập - Phí VC xưởng">
                           {profit >= 0 ? '+' : ''}{profit.toLocaleString()}đ
                         </td>
                       </tr>
@@ -1018,6 +1123,25 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                     </tr>
                   )}
                 </tbody>
+                <tfoot className="bg-slate-100/90 border-t-2 border-slate-300 font-black">
+                  <tr className="text-xs text-slate-800">
+                    <td colSpan={7} className="px-6 py-4 text-right uppercase tracking-wider text-slate-600 font-black text-xs">
+                      Tổng cộng ({mainFilteredData.length} đơn hàng):
+                    </td>
+                    <td className="px-6 py-4 text-right font-black text-blue-700 text-sm tabular-nums">
+                      {reportStats.totalSalePrice.toLocaleString()} đ
+                    </td>
+                    <td className="px-6 py-4 text-right font-black text-amber-700 text-sm tabular-nums">
+                      {reportStats.totalPurchasePrice.toLocaleString()} đ
+                    </td>
+                    <td className="px-6 py-4 text-right font-black text-indigo-700 text-sm tabular-nums">
+                      {reportStats.totalShipping.toLocaleString()} đ
+                    </td>
+                    <td className={`px-6 py-4 text-right font-black text-base tabular-nums ${reportStats.totalProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`} title="Tổng Doanh thu - Tổng Giá nhập - Tổng Phí VC xưởng">
+                      {reportStats.totalProfit >= 0 ? '+' : ''}{reportStats.totalProfit.toLocaleString()} đ
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
             
@@ -1135,9 +1259,15 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                          <span className="text-slate-400">Tổng doanh thu:</span>
                          <span className="text-blue-600 text-sm tabular-nums">{b.saleAmount.toLocaleString()}đ</span>
                       </div>
+                      <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest border-b border-slate-200 pb-2">
+                         <span className="text-slate-400">Phí VC xưởng:</span>
+                         <span className="text-indigo-600 text-sm tabular-nums">{(b.factoryShippingAmount || 0).toLocaleString()}đ</span>
+                      </div>
                       <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest pt-2">
                          <span className="text-emerald-600">Lợi nhuận:</span>
-                         <span className="text-emerald-600 text-sm tabular-nums">+{(b.saleAmount - b.purchaseAmount).toLocaleString()}đ</span>
+                         <span className={`text-sm tabular-nums font-black ${b.saleAmount - b.purchaseAmount - (b.factoryShippingAmount || 0) >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                           {b.saleAmount - b.purchaseAmount - (b.factoryShippingAmount || 0) >= 0 ? '+' : ''}{(b.saleAmount - b.purchaseAmount - (b.factoryShippingAmount || 0)).toLocaleString()}đ
+                         </span>
                       </div>
                    </div>
                 </div>
