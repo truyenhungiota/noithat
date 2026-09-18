@@ -244,7 +244,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
               <td className="p-2 text-center">
                 <div className="w-20 h-20 mx-auto bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
                   {item.imageUrl ? (
-                    <img src={item.imageUrl} className="w-full h-full object-cover" alt={item.name} />
+                    <img src={item.imageUrl} className="w-full h-full object-contain" alt={item.name} />
                   ) : (
                     <ImageIcon className="w-full h-full p-4 text-slate-300" />
                   )}
@@ -567,7 +567,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
               <td className="py-4 text-center pl-4">
                  <div className="w-16 h-16 mx-auto rounded-lg border border-slate-200 overflow-hidden bg-white flex items-center justify-center">
                    {item.imageUrl ? (
-                     <img src={item.imageUrl} className="w-full h-full object-cover" alt={item.name} />
+                     <img src={item.imageUrl} className="w-full h-full object-contain" alt={item.name} />
                    ) : (
                      <ImageIcon className="w-8 h-8 text-slate-200" />
                    )}

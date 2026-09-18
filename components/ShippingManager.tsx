@@ -220,8 +220,8 @@ const ShippingManager: React.FC<ShippingManagerProps> = ({ units, orders, onAddU
                       </div>
                       <div className="flex items-center gap-6 ml-4">
                          <div className="text-right min-w-[100px]">
-                            <p className="text-[9px] font-black text-slate-400 uppercase">Cước phí</p>
-                            <p className="font-black text-slate-900">{order.shippingCost.toLocaleString()}đ</p>
+                            <p className="text-[9px] font-black text-slate-400 uppercase">Cước VC Xưởng</p>
+                            <p className="font-black text-slate-900">{(order.factoryShippingCost || 0).toLocaleString()}đ</p>
                          </div>
                          <div className="flex gap-2">
                            <button onClick={() => onViewOrder(order)} className="p-3 bg-white rounded-2xl shadow-sm text-blue-600 hover:bg-blue-600 hover:text-white transition"><Eye className="w-5 h-5" /></button>
@@ -255,7 +255,7 @@ const ShippingManager: React.FC<ShippingManagerProps> = ({ units, orders, onAddU
                 </div>
                 <div className="w-full md:w-auto text-right">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Doanh số cước giao</p>
-                    <p className="text-3xl font-black text-blue-600 tabular-nums">{allUnitOrders.reduce((sum, o) => sum + (o.shippingCost || 0), 0).toLocaleString()}đ</p>
+                    <p className="text-3xl font-black text-blue-600 tabular-nums">{allUnitOrders.reduce((sum, o) => sum + (o.factoryShippingCost || 0), 0).toLocaleString()}đ</p>
                 </div>
               </div>
               
@@ -275,8 +275,8 @@ const ShippingManager: React.FC<ShippingManagerProps> = ({ units, orders, onAddU
                     <div className="text-right flex items-center gap-6 ml-4">
                       <div className="hidden md:flex flex-col items-end gap-1">
                         <div>
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Cước phí</p>
-                            <p className="font-black text-blue-600">{order.shippingCost.toLocaleString()}đ</p>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Cước VC Xưởng</p>
+                            <p className="font-black text-blue-600">{(order.factoryShippingCost || 0).toLocaleString()}đ</p>
                         </div>
                         {/* Nút thanh toán */}
                         <button 

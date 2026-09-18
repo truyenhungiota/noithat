@@ -15,10 +15,14 @@ const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
   const stats = orders.reduce((acc, order) => {
     const saleTotal = order.items.reduce((sum, item) => sum + (item.salePrice * item.quantity), 0);
     const costTotal = order.items.reduce((sum, item) => sum + (item.purchasePrice * item.quantity), 0);
+    const factoryShipping = order.factoryShippingCost || 0;
+    const customerShipping = order.shippingCost || 0;
     
-    acc.revenue += saleTotal;
+    const revenue = saleTotal + customerShipping;
+    
+    acc.revenue += revenue;
     acc.cost += costTotal;
-    acc.profit += (saleTotal - costTotal);
+    acc.profit += (revenue - costTotal - factoryShipping);
     
     if (order.status === OrderStatus.COMPLETED || order.status === OrderStatus.PAID) acc.completed++;
     if (order.status === OrderStatus.PENDING) acc.pending++;
@@ -28,11 +32,19 @@ const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
     return acc;
   }, { revenue: 0, cost: 0, profit: 0, completed: 0, pending: 0, production: 0, shipping: 0 });
 
-  const chartData = orders.slice(-7).map(o => ({
-    name: o.orderDate.split('T')[0],
-    revenue: o.items.reduce((sum, i) => sum + (i.salePrice * i.quantity), 0),
-    profit: o.items.reduce((sum, i) => sum + ((i.salePrice - i.purchasePrice) * i.quantity), 0),
-  }));
+  const chartData = orders.slice(-7).map(o => {
+    const saleTotal = o.items.reduce((sum, i) => sum + (i.salePrice * i.quantity), 0);
+    const costTotal = o.items.reduce((sum, i) => sum + (i.purchasePrice * i.quantity), 0);
+    const customerShipping = o.shippingCost || 0;
+    const factoryShipping = o.factoryShippingCost || 0;
+    const revenue = saleTotal + customerShipping;
+
+    return {
+      name: o.orderDate.split('T')[0],
+      revenue: revenue,
+      profit: revenue - costTotal - factoryShipping,
+    };
+  });
 
   const StatCard = ({ title, value, icon: Icon, color }: any) => (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">

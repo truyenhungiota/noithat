@@ -43,6 +43,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ order, customers, suppliers, ship
       vatRate: 8, // Mặc định 8%
 
       shippingCost: 0,
+      factoryShippingCost: 0,
       shippingUnitId: '',
       shippingUnitName: '',
       shippingUnitPhone: '',
@@ -452,11 +453,16 @@ const OrderForm: React.FC<OrderFormProps> = ({ order, customers, suppliers, ship
                    )}
                 </div>
 
-                <div className="pt-2">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cước phí (đ)</label>
+                <div className="pt-2 flex gap-4">
+                  <div className="space-y-1 flex-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cước thu khách (đ)</label>
                     <input type="number" min="0" max="99999999999" className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none font-black text-sm text-right text-white"
                       value={formData.shippingCost || ''} onChange={e => setFormData({ ...formData, shippingCost: Math.min(parseInt(e.target.value) || 0, 99999999999) })} />
+                  </div>
+                  <div className="space-y-1 flex-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Trả cho xưởng (đ)</label>
+                    <input type="number" min="0" max="99999999999" className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none font-black text-sm text-right text-white"
+                      value={formData.factoryShippingCost || ''} onChange={e => setFormData({ ...formData, factoryShippingCost: Math.min(parseInt(e.target.value) || 0, 99999999999) })} />
                   </div>
                 </div>
 
@@ -484,7 +490,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ order, customers, suppliers, ship
                         onClick={() => document.getElementById(`upload-${item.id}`)?.click()}
                       >
                         {item.imageUrl ? (
-                          <img src={item.imageUrl} className="w-full h-full object-cover" />
+                          <img src={item.imageUrl} className="w-full h-full object-contain bg-white" />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 group-hover/image:text-blue-500 transition-colors">
                             <ImageIcon className="w-12 h-12 mb-2" />

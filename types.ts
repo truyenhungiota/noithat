@@ -120,6 +120,7 @@ export interface Order {
 
   // Shipping Config
   shippingCost: number;
+  factoryShippingCost?: number; // Tiền vận chuyển trả cho xưởng
   shippingUnitId?: string;
   shippingUnitName?: string;
   shippingUnitPhone?: string;

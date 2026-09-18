@@ -75,7 +75,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onLo
           <NavItem id="products" label="Sản phẩm" icon={Package} />
           <NavItem id="shipping" label="Vận chuyển" icon={Truck} />
           <NavItem id="suppliers" label="Nhà xưởng" icon={Factory} />
-          <NavItem id="handover-gallery" label="Media bàn giao" icon={ImageIcon} />
 
           <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest ml-4 mt-6 mb-2">Đối tác</p>
           <NavItem id="customers" label="Khách hàng" icon={Users} />
@@ -119,7 +118,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onLo
                  activeTab === 'shipping' ? 'Vận chuyển' :
                  activeTab === 'customers' ? 'Khách hàng' : 
                  activeTab === 'suppliers' ? 'Nhà xưởng' : 
-                 activeTab === 'handover-gallery' ? 'Media' :
                  activeTab === 'users' ? 'Nhân sự' : 
                  activeTab === 'reports' ? 'Báo cáo' : 'Cấu hình'}
               </h2>
@@ -139,7 +137,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onLo
                activeTab === 'shipping' ? 'Hậu cần Vận chuyển' :
                activeTab === 'customers' ? 'Đối tác Khách hàng' : 
                activeTab === 'suppliers' ? 'Đối tác Nhà xưởng' : 
-               activeTab === 'handover-gallery' ? 'Media Bàn giao' :
                activeTab === 'users' ? 'Quản lý Nhân sự' : 
                activeTab === 'reports' ? 'Báo cáo Thống kê' : 'Cấu hình hệ thống'}
             </h2>

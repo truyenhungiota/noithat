@@ -204,7 +204,7 @@ const ProductManager: React.FC<ProductManagerProps> = ({
                 <div key={product.id} className={`bg-white rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-5 border border-slate-100 shadow-sm group hover:shadow-xl transition-all duration-300 flex flex-col relative overflow-hidden ${isInactive ? 'opacity-70 grayscale-[0.5]' : ''}`}>
                   <div className="aspect-square rounded-3xl bg-slate-50 mb-4 overflow-hidden relative border-2 border-slate-50 group-hover:border-indigo-100 transition">
                     {product.imageUrl ? (
-                      <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                      <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain bg-white" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-slate-200"><ImageIcon className="w-16 h-16" /></div>
                     )}
@@ -424,7 +424,7 @@ const ProductManager: React.FC<ProductManagerProps> = ({
                     title="Tải ảnh lên"
                   >
                     {editingProduct?.imageUrl ? (
-                      <img src={editingProduct.imageUrl} className="w-full h-full object-cover" />
+                      <img src={editingProduct.imageUrl} className="w-full h-full object-contain bg-white" />
                     ) : (
                       <ImageIcon className="w-6 h-6 text-slate-300 group-hover/image:text-indigo-500 transition-colors" />
                     )}

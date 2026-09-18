@@ -19,7 +19,7 @@ interface DetailedReportsProps {
 }
 
 const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, shippingUnits, onViewOrder, currentUser, users }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'finance' | 'suppliers' | 'excelExport' | 'workshopImports'>('finance');
+  const [activeSubTab, setActiveSubTab] = useState<'finance' | 'suppliers' | 'excelExport' | 'workshopImports' | 'factoryShipping'>('finance');
   
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -125,10 +125,15 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
 
   const exportToExcel = () => {
     // Xuất CSV hỗ trợ tiếng Việt (BOM UTF-8)
-    const headers = ["Ngày đơn", "Mã đơn", "Khách hàng", "Nhà xưởng", "Thanh toán Xưởng", "Đơn vị giao", "Thanh toán Ship", "Giá nhập (VNĐ)", "Giá bán (VNĐ)", "Lợi nhuận (VNĐ)", "Trạng thái"];
+    const headers = ["Ngày đơn", "Mã đơn", "Khách hàng", "Nhà xưởng", "Thanh toán Xưởng", "Đơn vị giao", "Thanh toán Ship", "Giá nhập (VNĐ)", "Phí VC xưởng (VNĐ)", "Doanh thu (VNĐ)", "Lợi nhuận (VNĐ)", "Trạng thái"];
     const rows = mainFilteredData.map(order => {
-      const sale = order.items.reduce((s, i) => s + (i.salePrice * i.quantity), 0);
+      const saleSubtotal = order.items.reduce((s, i) => s + (i.salePrice * i.quantity), 0);
       const purchase = order.items.reduce((s, i) => s + (i.purchasePrice * i.quantity), 0);
+      const factoryShipping = order.factoryShippingCost || 0;
+      const customerShipping = order.shippingCost || 0;
+      const revenue = saleSubtotal + customerShipping;
+      const profit = revenue - purchase - factoryShipping;
+      
       return [
         new Date(order.orderDate).toLocaleDateString('vi-VN'),
         order.id,
@@ -138,8 +143,9 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
         order.shippingUnitName || 'Tự giao',
         order.isShippingPaid ? "Đã trả" : "Chưa trả",
         purchase,
-        sale,
-        sale - purchase,
+        factoryShipping,
+        revenue,
+        profit,
         order.status
       ];
     });
@@ -177,6 +183,7 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
         unitPrice: number;
         totalPrice: number;
       }>;
+      shippingCost?: number;
       depositPaymentDate?: string;
       paymentDate?: string;
       invoiceDate?: string;
@@ -218,6 +225,7 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
             unitPrice: item.salePrice,
             totalPrice: item.salePrice * item.quantity,
           })),
+          shippingCost: order.shippingCost || 0,
           depositPaymentDate: order.depositPaymentDate,
           paymentDate: order.paymentDate || order.finalPaymentInvoiceDate,
           invoiceDate: order.invoiceDate || order.finalPaymentInvoiceDate,
@@ -232,7 +240,8 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
 
   const productStats = useMemo(() => {
     let totalQty = 0;
-    let totalAmount = 0;
+    let totalItemAmount = 0;
+    let totalShipping = 0;
     let depositCount = 0;
     let paymentCount = 0;
     const orderSet = new Set<string>();
@@ -240,14 +249,17 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
     productReportData.forEach(p => {
       p.items.forEach(item => {
         totalQty += item.quantity;
-        totalAmount += item.totalPrice;
+        totalItemAmount += item.totalPrice;
       });
+      totalShipping += (p.shippingCost || 0);
       orderSet.add(p.orderId);
       if (p.depositPaymentDate) depositCount++;
       if (p.paymentDate) paymentCount++;
     });
 
-    return { totalQty, totalAmount, totalOrders: orderSet.size, depositCount, paymentCount };
+    const totalAmount = totalItemAmount + totalShipping;
+
+    return { totalQty, totalItemAmount, totalShipping, totalAmount, totalOrders: orderSet.size, depositCount, paymentCount };
   }, [productReportData]);
 
   const paginatedProducts = useMemo(() => {
@@ -273,17 +285,24 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
       "Số lượng",
       "Đơn vị",
       "Đơn giá (VNĐ)",
-      "Thành tiền (VNĐ)"
+      "Thành tiền (VNĐ)",
+      "Phí ship (VNĐ)",
+      "Tổng tiền đơn (VNĐ)"
     ];
 
     let totalQty = 0;
+    let totalItemAmount = 0;
+    let totalShipping = 0;
     let totalAmount = 0;
 
     const dataRows = productReportData.flatMap((row, idx) => {
       const rowTotalQty = row.items.reduce((sum, item) => sum + item.quantity, 0);
-      const rowTotalAmount = row.items.reduce((sum, item) => sum + item.totalPrice, 0);
+      const rowItemAmount = row.items.reduce((sum, item) => sum + item.totalPrice, 0);
+      const rowTotalAmount = rowItemAmount + (row.shippingCost || 0);
 
       totalQty += rowTotalQty;
+      totalItemAmount += rowItemAmount;
+      totalShipping += (row.shippingCost || 0);
       totalAmount += rowTotalAmount;
 
       return row.items.map((item, itemIdx) => {
@@ -302,7 +321,9 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
           item.quantity,
           item.unit || 'Cái',
           item.unitPrice,
-          item.totalPrice
+          item.totalPrice,
+          itemIdx === 0 ? (row.shippingCost || 0) : '',
+          itemIdx === 0 ? rowTotalAmount : ''
         ];
       });
     });
@@ -321,6 +342,8 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
       totalQty,
       "",
       "",
+      totalItemAmount,
+      totalShipping,
       totalAmount
     ];
 
@@ -374,32 +397,47 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
       "Số lượng",
       "Đơn vị",
       "Đơn giá (VNĐ)",
-      "Thành tiền (VNĐ)"
+      "Thành tiền (VNĐ)",
+      "Phí ship (VNĐ)",
+      "Tổng tiền đơn (VNĐ)"
     ];
 
     let totalQty = 0;
+    let totalItemAmount = 0;
+    let totalShipping = 0;
     let totalAmount = 0;
 
-    const rows = productReportData.map((row, idx) => {
-      totalQty += row.quantity;
-      totalAmount += row.totalPrice;
-      const productNameFull = row.dimensions ? `${row.productName} (${row.dimensions})` : row.productName;
-      return [
-        idx + 1,
-        `"${row.orderId}"`,
-        `"${row.customerName.replace(/"/g, '""')}"`,
-        `"${(row.customerCompanyName || '').replace(/"/g, '""')}"`,
-        `"${row.customerPhone || ''}"`,
-        `"${row.customerTaxCode || ''}"`,
-        `"${(row.address || '').replace(/"/g, '""')}"`,
-        `"${formatDateTime(row.depositPaymentDate)}"`,
-        `"${formatDateTime(row.paymentDate)}"`,
-        `"${productNameFull.replace(/"/g, '""')}"`,
-        row.quantity,
-        `"${row.unit || 'Cái'}"`,
-        row.unitPrice,
-        row.totalPrice
-      ];
+    const rows = productReportData.flatMap((row, idx) => {
+      const rowTotalQty = row.items.reduce((sum, item) => sum + item.quantity, 0);
+      const rowItemAmount = row.items.reduce((sum, item) => sum + item.totalPrice, 0);
+      const rowTotalAmount = rowItemAmount + (row.shippingCost || 0);
+
+      totalQty += rowTotalQty;
+      totalItemAmount += rowItemAmount;
+      totalShipping += (row.shippingCost || 0);
+      totalAmount += rowTotalAmount;
+
+      return row.items.map((item, itemIdx) => {
+        const productNameFull = item.dimensions ? `${item.productName} (${item.dimensions})` : item.productName;
+        return [
+          itemIdx === 0 ? idx + 1 : '',
+          itemIdx === 0 ? `"${row.orderId}"` : '',
+          itemIdx === 0 ? `"${row.customerName.replace(/"/g, '""')}"` : '',
+          itemIdx === 0 ? `"${(row.customerCompanyName || '').replace(/"/g, '""')}"` : '',
+          itemIdx === 0 ? `"${row.customerPhone || ''}"` : '',
+          itemIdx === 0 ? `"${row.customerTaxCode || ''}"` : '',
+          itemIdx === 0 ? `"${(row.address || '').replace(/"/g, '""')}"` : '',
+          itemIdx === 0 ? `"${formatDateTime(row.depositPaymentDate)}"` : '',
+          itemIdx === 0 ? `"${formatDateTime(row.paymentDate)}"` : '',
+          `"${productNameFull.replace(/"/g, '""')}"`,
+          item.quantity,
+          `"${item.unit || 'Cái'}"`,
+          item.unitPrice,
+          item.totalPrice,
+          itemIdx === 0 ? (row.shippingCost || 0) : '',
+          itemIdx === 0 ? rowTotalAmount : ''
+        ];
+      });
     });
 
     const summaryRow = [
@@ -416,6 +454,8 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
       totalQty,
       "",
       "",
+      totalItemAmount,
+      totalShipping,
       totalAmount
     ];
 
@@ -675,15 +715,18 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
     return mainFilteredData.reduce((acc, order) => {
       const saleSubtotal = order.items.reduce((sum, i) => sum + (i.salePrice * i.quantity), 0);
       const purchaseSubtotal = order.items.reduce((sum, i) => sum + (i.purchasePrice * i.quantity), 0);
-      const shipping = order.shippingCost || 0;
+      const factoryShipping = order.factoryShippingCost || 0;
+      const customerShipping = order.shippingCost || 0;
       
-      acc.totalSalePrice += saleSubtotal;
+      const revenue = saleSubtotal + customerShipping;
+      
+      acc.totalSalePrice += revenue;
       acc.totalPurchasePrice += purchaseSubtotal;
-      acc.totalProfit += (saleSubtotal - purchaseSubtotal);
-      acc.totalShipping += shipping;
+      acc.totalProfit += (revenue - purchaseSubtotal - factoryShipping);
+      acc.totalShipping += factoryShipping;
 
       if (!order.isSupplierPaid) acc.totalUnpaidSupplier += purchaseSubtotal;
-      if (!order.isShippingPaid) acc.totalUnpaidShipping += shipping;
+      if (!order.isShippingPaid) acc.totalUnpaidShipping += factoryShipping;
       
       return acc;
     }, { totalSalePrice: 0, totalPurchasePrice: 0, totalProfit: 0, totalShipping: 0, totalUnpaidSupplier: 0, totalUnpaidShipping: 0 });
@@ -708,6 +751,7 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
             <button onClick={() => setActiveSubTab('suppliers')} className={`flex-1 xl:flex-none px-6 py-3 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center gap-2 ${activeSubTab === 'suppliers' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200'}`}><Factory className="w-4 h-4" /> Phân tích xưởng</button>
             <button onClick={() => setActiveSubTab('excelExport')} className={`flex-1 xl:flex-none px-6 py-3 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center gap-2 ${activeSubTab === 'excelExport' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200'}`}><FileSpreadsheet className="w-4 h-4" /> Báo cáo bán hàng</button>
             <button onClick={() => setActiveSubTab('workshopImports')} className={`flex-1 xl:flex-none px-6 py-3 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center gap-2 ${activeSubTab === 'workshopImports' ? 'bg-violet-600 text-white shadow-md shadow-violet-600/20' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200'}`}><Boxes className="w-4 h-4" /> Nhập hàng nhà xưởng</button>
+            <button onClick={() => setActiveSubTab('factoryShipping')} className={`flex-1 xl:flex-none px-6 py-3 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center gap-2 ${activeSubTab === 'factoryShipping' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200'}`}><Truck className="w-4 h-4" /> Báo cáo VC Xưởng</button>
           </div>
 
           {/* Bottom Row: Filters Grid */}
@@ -740,6 +784,14 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
             </div>
 
             {/* Payment Filters */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase ml-2 flex items-center gap-1"><Truck className="w-3 h-3"/> Vận chuyển</label>
+              <select className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-sm font-black uppercase tracking-tight focus:bg-white focus:ring-2 focus:ring-slate-500 transition-all cursor-pointer" value={selectedShippingId} onChange={e => setSelectedShippingId(e.target.value)}>
+                <option value="all">Tất cả đơn vị</option>
+                {shippingUnits.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] font-black text-amber-600 uppercase ml-2 flex items-center gap-1"><Banknote className="w-3 h-3"/> Thanh toán xưởng</label>
               <select className="w-full px-5 py-3.5 bg-amber-50/50 border border-amber-200 text-amber-800 rounded-xl text-sm font-black uppercase tracking-tight focus:bg-amber-50 focus:ring-2 focus:ring-amber-500 transition-all cursor-pointer" value={supplierPaymentFilter} onChange={e => setSupplierPaymentFilter(e.target.value as any)}>
@@ -774,7 +826,7 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4 border-t border-slate-50">
             <div className="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100/50 flex flex-col items-center text-center relative overflow-hidden">
               <Truck className="w-8 h-8 text-indigo-500 mb-3" />
-              <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Phí vận chuyển</p>
+              <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Phí VC Xưởng</p>
               <p className="text-xl font-black text-slate-900 mt-1 tabular-nums">{reportStats.totalShipping.toLocaleString()}đ</p>
               {reportStats.totalUnpaidShipping > 0 && (
                  <div className="mt-2 px-3 py-1 bg-red-100 rounded-lg flex items-center gap-1.5">
@@ -796,7 +848,7 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
             </div>
             <div className="bg-blue-50/50 p-6 rounded-3xl border border-blue-100/50 flex flex-col items-center text-center">
               <DollarSign className="w-8 h-8 text-blue-500 mb-3" />
-              <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Tổng doanh thu (Bán)</p>
+              <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Tổng doanh thu</p>
               <p className="text-xl font-black text-slate-900 mt-1 tabular-nums">{reportStats.totalSalePrice.toLocaleString()}đ</p>
             </div>
             <div className="bg-emerald-50/50 p-6 rounded-3xl border border-emerald-100/50 flex flex-col items-center text-center">
@@ -818,6 +870,8 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
                  : activeSubTab === 'finance'
                  ? 'bg-slate-900 text-white'
+                 : activeSubTab === 'factoryShipping'
+                 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                  : 'bg-amber-600 text-white'
              }`}>
                 {activeSubTab === 'workshopImports' ? (
@@ -826,6 +880,8 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                   <FileSpreadsheet className="w-6 h-6" />
                 ) : activeSubTab === 'finance' ? (
                   <List className="w-6 h-6" />
+                ) : activeSubTab === 'factoryShipping' ? (
+                  <Truck className="w-6 h-6" />
                 ) : (
                   <PieChart className="w-6 h-6" />
                 )}
@@ -838,6 +894,8 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                    ? 'Báo cáo bán hàng'
                    : activeSubTab === 'finance'
                    ? 'Bảng kê chi tiết'
+                   : activeSubTab === 'factoryShipping'
+                   ? 'Báo cáo phí VC xưởng'
                    : 'Hiệu suất nhà xưởng'}
                </h3>
                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
@@ -845,6 +903,8 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                    ? `Tổng cộng ${workshopImportsData.length} dòng nhập hàng | ${workshopStats.totalQty} cái`
                    : activeSubTab === 'excelExport' 
                    ? `Tổng cộng ${productReportData.length} dòng đơn hàng bán | ${productStats.totalQty} cái | Tổng tiền: ${productStats.totalAmount.toLocaleString()} đ` 
+                   : activeSubTab === 'factoryShipping'
+                   ? `Tổng cộng ${mainFilteredData.filter(o => o.factoryShippingCost && o.factoryShippingCost > 0).length} đơn hàng có phí VC | Tổng phí: ${mainFilteredData.reduce((sum, o) => sum + (o.factoryShippingCost || 0), 0).toLocaleString()} đ`
                    : `Hiển thị ${mainFilteredData.length} kết quả`}
                </p>
              </div>
@@ -901,14 +961,21 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                     <th className="px-6 py-4">Đơn vị giao</th>
                     <th className="px-6 py-4 text-center">TT Ship</th>
                     <th className="px-6 py-4 text-right">Giá nhập</th>
-                    <th className="px-6 py-4 text-right">Giá bán</th>
+                    <th className="px-6 py-4 text-right">Phí VC xưởng</th>
+                    <th className="px-6 py-4 text-right">Doanh thu</th>
                     <th className="px-6 py-4 text-right">Lợi nhuận</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {paginatedOrders.map(order => {
-                    const sale = order.items.reduce((s, i) => s + (i.salePrice * i.quantity), 0);
+                    const saleSubtotal = order.items.reduce((s, i) => s + (i.salePrice * i.quantity), 0);
                     const purchase = order.items.reduce((s, i) => s + (i.purchasePrice * i.quantity), 0);
+                    const factoryShipping = order.factoryShippingCost || 0;
+                    const customerShipping = order.shippingCost || 0;
+                    
+                    const revenue = saleSubtotal + customerShipping;
+                    const profit = revenue - purchase - factoryShipping;
+                    
                     return (
                       <tr key={order.id} className="text-xs hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-5 text-slate-400 font-bold tabular-nums">{new Date(order.orderDate).toLocaleDateString('vi-VN')}</td>
@@ -937,14 +1004,17 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                            )}
                         </td>
                         <td className="px-6 py-5 text-right font-medium text-slate-400 tabular-nums">{purchase.toLocaleString()}đ</td>
-                        <td className="px-6 py-5 text-right font-black text-slate-900 tabular-nums">{sale.toLocaleString()}đ</td>
-                        <td className="px-6 py-5 text-right font-black text-emerald-600 tabular-nums">+{(sale-purchase).toLocaleString()}đ</td>
+                        <td className="px-6 py-5 text-right font-medium text-indigo-400 tabular-nums">{factoryShipping.toLocaleString()}đ</td>
+                        <td className="px-6 py-5 text-right font-black text-slate-900 tabular-nums">{revenue.toLocaleString()}đ</td>
+                        <td className={`px-6 py-5 text-right font-black tabular-nums ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {profit >= 0 ? '+' : ''}{profit.toLocaleString()}đ
+                        </td>
                       </tr>
                     );
                   })}
                   {paginatedOrders.length === 0 && (
                     <tr>
-                      <td colSpan={10} className="py-20 text-center font-black text-slate-300 uppercase text-xs">Không có dữ liệu phù hợp</td>
+                      <td colSpan={11} className="py-20 text-center font-black text-slate-300 uppercase text-xs">Không có dữ liệu phù hợp</td>
                     </tr>
                   )}
                 </tbody>
@@ -981,6 +1051,65 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
               </div>
             )}
           </>
+        ) : activeSubTab === 'factoryShipping' ? (
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left min-w-[1000px]">
+              <thead className="bg-slate-50 border-b">
+                <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  <th className="px-6 py-4">Ngày đơn</th>
+                  <th className="px-6 py-4">Mã đơn</th>
+                  <th className="px-6 py-4">Khách hàng</th>
+                  <th className="px-6 py-4">Nhà xưởng</th>
+                  <th className="px-6 py-4 text-right">Phí VC xưởng (đ)</th>
+                  <th className="px-6 py-4 text-center">Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {mainFilteredData.filter(o => o.factoryShippingCost && o.factoryShippingCost > 0).map(order => (
+                  <tr key={order.id} className="hover:bg-slate-50 transition cursor-pointer group" onClick={() => onViewOrder(order)}>
+                    <td className="px-6 py-4">
+                      <p className="font-bold text-slate-800 text-sm">{order.orderDate.split('T')[0]}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="font-black text-blue-600 text-sm group-hover:underline">{order.id}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="font-bold text-slate-800 text-sm">{order.customerName}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="font-bold text-slate-800 text-sm">{order.supplierName}</p>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <p className="font-black text-indigo-600">{order.factoryShippingCost?.toLocaleString()}</p>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                         order.isShippingPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                       }`}>
+                         {order.isShippingPaid ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                       </span>
+                    </td>
+                  </tr>
+                ))}
+                {mainFilteredData.filter(o => o.factoryShippingCost && o.factoryShippingCost > 0).length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-slate-400 font-bold text-sm">
+                      Không có dữ liệu phí vận chuyển xưởng trong khoảng thời gian này
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+              <tfoot className="bg-indigo-50/50">
+                <tr>
+                  <td colSpan={4} className="px-6 py-4 text-right font-black text-slate-600 uppercase text-xs">Tổng Phí Vận Chuyển Xưởng:</td>
+                  <td className="px-6 py-4 text-right font-black text-indigo-700 text-lg">
+                    {mainFilteredData.reduce((sum, o) => sum + (o.factoryShippingCost || 0), 0).toLocaleString()} đ
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         ) : activeSubTab === 'suppliers' ? (
           <div className="p-4 md:p-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1103,13 +1232,15 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                     <th className="px-4 py-3.5 text-center w-24">Số lượng</th>
                     <th className="px-4 py-3.5 text-right w-28">Đơn giá</th>
                     <th className="px-5 py-3.5 text-right w-32">Thành tiền</th>
+                    <th className="px-4 py-3.5 text-right w-28">Phí ship</th>
+                    <th className="px-5 py-3.5 text-right w-32">Tổng tiền đơn</th>
                     <th className="px-3 py-3.5 text-right no-print w-12"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {paginatedProducts.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className="py-14 text-center">
+                      <td colSpan={13} className="py-14 text-center">
                         <div className="max-w-md mx-auto space-y-3 px-4">
                           <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto shadow-sm">
                             <Sparkles className="w-6 h-6" />
@@ -1237,6 +1368,20 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                                 {item.totalPrice.toLocaleString()} đ
                               </td>
 
+                              {/* 11. Phí ship */}
+                              {itemIndex === 0 && (
+                                <td rowSpan={row.items.length} className="px-4 py-3.5 text-right font-bold text-slate-500 tabular-nums align-top">
+                                  {(row.shippingCost || 0) > 0 ? `${(row.shippingCost || 0).toLocaleString()} đ` : '—'}
+                                </td>
+                              )}
+
+                              {/* 12. Tổng tiền đơn */}
+                              {itemIndex === 0 && (
+                                <td rowSpan={row.items.length} className="px-5 py-3.5 text-right font-black text-blue-700 text-sm tabular-nums align-top">
+                                  {(row.items.reduce((s, i) => s + i.totalPrice, 0) + (row.shippingCost || 0)).toLocaleString()} đ
+                                </td>
+                              )}
+
                               {/* Thao tác */}
                               {itemIndex === 0 && (
                                 <td rowSpan={row.items.length} className="px-3 py-3.5 text-right no-print align-top">
@@ -1260,7 +1405,7 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                 <tfoot className="bg-slate-100/90 border-t-2 border-slate-300 font-black">
                   <tr className="text-xs text-slate-800">
                     <td colSpan={7} className="px-6 py-4 text-right uppercase tracking-wider text-slate-600 font-black text-xs">
-                      Tổng tiền của toàn bộ bảng ghi đang lọc:
+                      Tổng cộng toàn bộ bảng ghi:
                     </td>
                     <td className="px-4 py-4 text-center font-black text-slate-900 tabular-nums text-xs">
                       <span className="inline-block px-2.5 py-1 bg-white rounded-lg border border-slate-200 text-slate-900 shadow-sm font-black">
@@ -1269,6 +1414,12 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                     </td>
                     <td className="px-4 py-4 text-right text-slate-400 font-bold">-</td>
                     <td className="px-5 py-4 text-right font-black text-emerald-700 text-base tabular-nums">
+                      {productStats.totalItemAmount.toLocaleString()} đ
+                    </td>
+                    <td className="px-4 py-4 text-right font-black text-slate-600 text-sm tabular-nums">
+                      {productStats.totalShipping > 0 ? `${productStats.totalShipping.toLocaleString()} đ` : '-'}
+                    </td>
+                    <td className="px-5 py-4 text-right font-black text-blue-700 text-base tabular-nums">
                       {productStats.totalAmount.toLocaleString()} đ
                     </td>
                     <td className="no-print"></td>

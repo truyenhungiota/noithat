@@ -7,7 +7,6 @@ import DocumentPreview from './components/DocumentPreview';
 import CustomerManager from './components/CustomerManager';
 import SupplierManager from './components/SupplierManager';
 import UserManager from './components/UserManager';
-import HandoverManager from './components/HandoverManager';
 import ShippingManager from './components/ShippingManager';
 import ProductManager from './components/ProductManager'; 
 import Settings from './components/Settings';
@@ -171,7 +170,6 @@ const App: React.FC = () => {
   
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const [mediaOrderModalId, setMediaOrderModalId] = useState<string | null>(null);
 
   const userOrders = useMemo(() => {
     if (!currentUser) return [];
@@ -321,6 +319,7 @@ const App: React.FC = () => {
         isInvoiced: !!order.isInvoiced,
         invoiceCode: order.invoiceCode || '',
         shippingCost: order.shippingCost || 0,
+        factoryShippingCost: order.factoryShippingCost || 0,
         items: order.items || [],
         depositPaymentDate: order.depositPaymentDate || '',
         finalPaymentInvoiceDate: order.finalPaymentInvoiceDate || '',
@@ -506,7 +505,6 @@ const App: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {paginatedOrders.map(order => {
-                    const hasMedia = order.handoverMedia && order.handoverMedia.length > 0;
                     return (
                       <tr key={order.id} className="hover:bg-blue-50/40 transition">
                         <td className="px-4 md:px-6 py-4 md:py-6 font-black text-blue-600">{order.id}</td>
@@ -594,7 +592,6 @@ const App: React.FC = () => {
                         <td className="px-4 md:px-6 py-4 md:py-6">
                           <div className="flex justify-end gap-1.5 md:gap-2">
                             <button onClick={() => openPaymentModal(order)} title="Cập nhật thời gian cọc & xuất hóa đơn" className="p-2.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl transition shadow-sm"><CreditCard className="w-5 h-5" /></button>
-                            <button onClick={() => setMediaOrderModalId(order.id)} title="Hình ảnh bàn giao" className={`p-2.5 rounded-xl transition shadow-sm ${hasMedia ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}><Camera className={`w-5 h-5 ${!hasMedia ? 'opacity-40' : ''}`} /></button>
                             <button onClick={() => setPreviewOrderId(order.id)} title="Xem chứng từ" className="p-2.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl transition shadow-sm"><Eye className="w-5 h-5" /></button>
                             <button onClick={() => { setEditingOrder(order); setIsFormOpen(true); }} title="Sửa đơn hàng" className="p-2.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl transition shadow-sm"><Edit3 className="w-5 h-5" /></button>
                             <button onClick={() => deleteOrder(order.id)} title="Xóa đơn hàng" className="p-2.5 bg-red-50 text-red-500 hover:bg-red-600 hover:text-white rounded-xl transition shadow-sm"><Trash2 className="w-5 h-5" /></button>
@@ -641,17 +638,6 @@ const App: React.FC = () => {
           onAddCategory={async (c) => { await firestoreMutations.saveItem('categories', c); showNotification('Đã thêm danh mục mới'); }}
           onUpdateCategory={async (c) => { await firestoreMutations.saveItem('categories', c); showNotification('Đã cập nhật danh mục'); }}
           onDeleteCategory={deleteCategory}
-        />;
-      case 'handover-gallery': 
-        return <HandoverManager 
-          orders={userOrders} 
-          company={currentCompanySettings} 
-          onUpdateMedia={async (id, media) => {
-            const order = orders.find(o => o.id === id);
-            if(order) await firestoreMutations.saveItem('orders', {...order, handoverMedia: media});
-          }}
-          currentUser={currentUser!}
-          onNotify={showNotification}
         />;
       case 'shipping': 
         return <ShippingManager 
@@ -742,7 +728,6 @@ const App: React.FC = () => {
           onEditOrder={(o) => {setEditingOrder(o); setIsFormOpen(true);}} 
           onDeleteOrder={deleteOrder} 
           onUpdateOrderStatus={updateOrderStatus} 
-          onOpenHandoverMedia={setMediaOrderModalId} 
         />;
       case 'users': return <UserManager currentUser={currentUser!} users={users} onAddUser={async (u) => { await firestoreMutations.saveItem('users', u); showNotification('Đã thêm người dùng mới'); }} onUpdateUser={async (u) => { await firestoreMutations.saveItem('users', u); showNotification('Đã cập nhật thông tin người dùng'); }} onDeleteUser={async (id) => { await firestoreMutations.deleteItem('users', id); showNotification('Đã xóa người dùng'); }} />;
       case 'settings': return <Settings settings={currentCompanySettings} onSave={handleSaveSettings} />;
@@ -764,7 +749,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <Layout activeTab={activeTab} setActiveTab={(tab) => { setActiveTab(tab); setMediaOrderModalId(null); }} onLogout={handleLogout} user={currentUser}>
+    <Layout activeTab={activeTab} setActiveTab={(tab) => { setActiveTab(tab); }} onLogout={handleLogout} user={currentUser}>
       {renderContent()}
       {notification && <Toast message={notification.message} type={notification.type} onClose={() => setNotification(null)} />}
       {isFormOpen && <OrderForm order={editingOrder} customers={userCustomers} suppliers={userSuppliers} shippingUnits={userShippingUnits} products={userProducts} users={users} onSave={handleSaveOrder} onClose={() => setIsFormOpen(false)} />}
@@ -775,16 +760,6 @@ const App: React.FC = () => {
           supplier={suppliers.find(s => s.id === currentPreviewOrder.supplierId)} 
           onClose={() => setPreviewOrderId(null)} 
         />
-      )}
-      {mediaOrderModalId && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4 lg:p-20">
-           <div className="relative w-full max-w-7xl h-full overflow-hidden bg-white rounded-[3rem] shadow-2xl flex flex-col">
-              <button onClick={() => setMediaOrderModalId(null)} className="absolute top-6 right-6 z-[110] p-3 bg-slate-100 hover:bg-red-500 hover:text-white rounded-2xl transition"><X className="w-6 h-6" /></button>
-              <div className="flex-1 overflow-y-auto">
-                <HandoverManager orders={userOrders} company={currentCompanySettings} initialOrderId={mediaOrderModalId} onUpdateMedia={async (id, media) => { const order = orders.find(o => o.id === id); if(order) await firestoreMutations.saveItem('orders', {...order, handoverMedia: media}); }} currentUser={currentUser!} onNotify={showNotification} />
-              </div>
-           </div>
-        </div>
       )}
       {paymentModalOrder && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[120] animate-in fade-in-50">
