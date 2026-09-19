@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import { Download, Calendar, Search, TrendingUp, DollarSign, Package, ShieldCheck, Truck, Factory, List, ArrowRight, Wallet, ClipboardList, Filter, Hash, User, MapPin, CalendarDays, ArrowDownWideNarrow, ChevronLeft, ChevronRight, FileText, Banknote, PieChart, FileSpreadsheet, Printer, CheckCircle2, Circle, AlertCircle, Activity, Clock, CreditCard, Receipt, Boxes, Warehouse, Sparkles } from 'lucide-react';
 import { Pagination } from './Pagination';
+import { compareOrdersDepositOldestFirst } from '../lib/sortUtils';
 
 interface DetailedReportsProps {
   orders: Order[];
@@ -19,7 +20,7 @@ interface DetailedReportsProps {
 }
 
 const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, shippingUnits, onViewOrder, currentUser, users }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'finance' | 'suppliers' | 'excelExport' | 'workshopImports' | 'factoryShipping'>('finance');
+  const [activeSubTab, setActiveSubTab] = useState<'finance' | 'excelExport' | 'workshopImports' | 'factoryShipping'>('finance');
   
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -120,7 +121,7 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
       const matchStatus = statusFilter === 'all' || order.status === statusFilter;
 
       return matchStart && matchEnd && matchSupplier && matchShipping && matchSupplierPayment && matchShippingPayment && matchStatus;
-    }).sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+    }).sort(compareOrdersDepositOldestFirst);
   }, [orders, startDate, endDate, selectedSupplierId, selectedShippingId, availableSuppliers, isAdmin, currentUser, selectedShopId, supplierPaymentFilter, shippingPaymentFilter, statusFilter]);
 
   const exportFinanceReportToExcel = () => {
@@ -847,7 +848,6 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
           {/* Top Row: Tabs */}
           <div className="flex flex-wrap bg-slate-100 p-1.5 rounded-2xl w-full xl:w-fit gap-1">
             <button onClick={() => setActiveSubTab('finance')} className={`flex-1 xl:flex-none px-6 py-3 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center gap-2 ${activeSubTab === 'finance' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200'}`}><TrendingUp className="w-4 h-4" /> Báo cáo chung</button>
-            <button onClick={() => setActiveSubTab('suppliers')} className={`flex-1 xl:flex-none px-6 py-3 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center gap-2 ${activeSubTab === 'suppliers' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200'}`}><Factory className="w-4 h-4" /> Phân tích xưởng</button>
             <button onClick={() => setActiveSubTab('excelExport')} className={`flex-1 xl:flex-none px-6 py-3 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center gap-2 ${activeSubTab === 'excelExport' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200'}`}><FileSpreadsheet className="w-4 h-4" /> Báo cáo bán hàng</button>
             <button onClick={() => setActiveSubTab('workshopImports')} className={`flex-1 xl:flex-none px-6 py-3 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center gap-2 ${activeSubTab === 'workshopImports' ? 'bg-violet-600 text-white shadow-md shadow-violet-600/20' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200'}`}><Boxes className="w-4 h-4" /> Nhập hàng nhà xưởng</button>
             <button onClick={() => setActiveSubTab('factoryShipping')} className={`flex-1 xl:flex-none px-6 py-3 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center gap-2 ${activeSubTab === 'factoryShipping' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200'}`}><Truck className="w-4 h-4" /> Báo cáo VC Xưởng</button>
@@ -966,40 +966,34 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
         <div className="p-6 md:p-8 border-b flex flex-col md:flex-row justify-between items-center bg-slate-50/30 gap-4">
           <div className="flex items-center gap-4 w-full md:w-auto">
              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
-               activeSubTab === 'workshopImports'
-                 ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20'
-                 : activeSubTab === 'excelExport'
-                 ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
-                 : activeSubTab === 'finance'
-                 ? 'bg-slate-900 text-white'
-                 : activeSubTab === 'factoryShipping'
-                 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
-                 : 'bg-amber-600 text-white'
-             }`}>
-                {activeSubTab === 'workshopImports' ? (
-                  <Boxes className="w-6 h-6" />
-                ) : activeSubTab === 'excelExport' ? (
-                  <FileSpreadsheet className="w-6 h-6" />
-                ) : activeSubTab === 'finance' ? (
-                  <DollarSign className="w-6 h-6" />
-                ) : activeSubTab === 'factoryShipping' ? (
-                  <Truck className="w-6 h-6" />
-                ) : (
-                  <PieChart className="w-6 h-6" />
-                )}
-             </div>
-             <div>
-               <h3 className="text-lg md:text-xl font-black text-slate-800 uppercase tracking-tighter">
-                 {activeSubTab === 'workshopImports'
-                   ? 'Báo cáo nhập hàng nhà xưởng'
-                   : activeSubTab === 'excelExport'
-                   ? 'Báo cáo bán hàng'
-                   : activeSubTab === 'finance'
-                   ? 'Bảng kê chi tiết tài chính'
-                   : activeSubTab === 'factoryShipping'
-                   ? 'Báo cáo phí VC xưởng'
-                   : 'Hiệu suất nhà xưởng'}
-               </h3>
+                activeSubTab === 'workshopImports'
+                  ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20'
+                  : activeSubTab === 'excelExport'
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
+                  : activeSubTab === 'factoryShipping'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                  : 'bg-slate-900 text-white'
+              }`}>
+                 {activeSubTab === 'workshopImports' ? (
+                   <Boxes className="w-6 h-6" />
+                 ) : activeSubTab === 'excelExport' ? (
+                   <FileSpreadsheet className="w-6 h-6" />
+                 ) : activeSubTab === 'factoryShipping' ? (
+                   <Truck className="w-6 h-6" />
+                 ) : (
+                   <DollarSign className="w-6 h-6" />
+                 )}
+              </div>
+              <div>
+                <h3 className="text-lg md:text-xl font-black text-slate-800 uppercase tracking-tighter">
+                  {activeSubTab === 'workshopImports'
+                    ? 'Báo cáo nhập hàng nhà xưởng'
+                    : activeSubTab === 'excelExport'
+                    ? 'Báo cáo bán hàng'
+                    : activeSubTab === 'factoryShipping'
+                    ? 'Báo cáo phí VC xưởng'
+                    : 'Bảng kê chi tiết tài chính'}
+                </h3>
                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
                  {activeSubTab === 'workshopImports'
                    ? `Tổng cộng ${workshopImportsData.length} dòng nhập hàng | ${workshopStats.totalQty} cái`
@@ -1058,7 +1052,7 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
               <table className="w-full text-left min-w-[1000px]">
                 <thead className="bg-slate-50 border-b">
                   <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                    <th className="px-6 py-4">Ngày đơn</th>
+                    <th className="px-6 py-4">Ngày đơn / Cọc</th>
                     <th className="px-6 py-4">Mã đơn</th>
                     <th className="px-6 py-4">Khách hàng</th>
                     <th className="px-6 py-4">Nhà xưởng</th>
@@ -1083,7 +1077,15 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                     
                     return (
                       <tr key={order.id} className="text-xs hover:bg-slate-50/50 transition-colors">
-                        <td className="px-6 py-5 text-slate-400 font-bold tabular-nums">{new Date(order.orderDate).toLocaleDateString('vi-VN')}</td>
+                        <td className="px-6 py-5 text-slate-500 font-bold tabular-nums">
+                          <div>{new Date(order.orderDate).toLocaleDateString('vi-VN')}</div>
+                          {order.depositPaymentDate && (
+                            <div className="text-[10px] text-emerald-600 font-bold mt-0.5 flex items-center gap-1">
+                              <span className="text-[8px] font-black uppercase text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">Cọc</span>
+                              <span>{new Date(order.depositPaymentDate).toLocaleDateString('vi-VN')}</span>
+                            </div>
+                          )}
+                        </td>
                         <td 
                           onClick={() => onViewOrder(order)}
                           className="px-6 py-5 font-black text-blue-600 hover:text-blue-800 cursor-pointer underline underline-offset-4 decoration-blue-200 hover:decoration-blue-600 transition-all"
@@ -1233,46 +1235,6 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                 </tr>
               </tfoot>
             </table>
-          </div>
-        ) : activeSubTab === 'suppliers' ? (
-          <div className="p-4 md:p-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {supplierBreakdown.map(b => (
-                <div key={b.id} className="p-6 bg-slate-50 rounded-[2rem] border-2 border-slate-100 hover:border-amber-200 transition-all group">
-                   <div className="flex justify-between items-start mb-6">
-                      <div className="w-12 h-12 bg-amber-600 text-white rounded-2xl flex items-center justify-center shadow-lg"><Factory className="w-6 h-6" /></div>
-                      <span className="bg-white px-3 py-1 rounded-lg text-[10px] font-black text-slate-400 border uppercase">{b.totalOrders} đơn hàng</span>
-                   </div>
-                   <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight mb-6 leading-tight group-hover:text-amber-600 transition-colors">{b.name}</h4>
-                   <div className="space-y-3">
-                      <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest border-b border-slate-200 pb-2">
-                         <span className="text-slate-400">Tổng nhập:</span>
-                         <span className="text-slate-900 text-sm tabular-nums">{b.purchaseAmount.toLocaleString()}đ</span>
-                      </div>
-                      {b.unpaidAmount > 0 && (
-                        <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest border-b border-red-100 pb-2 bg-red-50 p-2 rounded-lg">
-                           <span className="text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Nợ chưa trả:</span>
-                           <span className="text-red-600 text-sm tabular-nums">{b.unpaidAmount.toLocaleString()}đ</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest border-b border-slate-200 pb-2">
-                         <span className="text-slate-400">Tổng doanh thu:</span>
-                         <span className="text-blue-600 text-sm tabular-nums">{b.saleAmount.toLocaleString()}đ</span>
-                      </div>
-                      <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest border-b border-slate-200 pb-2">
-                         <span className="text-slate-400">Phí VC xưởng:</span>
-                         <span className="text-indigo-600 text-sm tabular-nums">{(b.factoryShippingAmount || 0).toLocaleString()}đ</span>
-                      </div>
-                      <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest pt-2">
-                         <span className="text-emerald-600">Lợi nhuận:</span>
-                         <span className={`text-sm tabular-nums font-black ${b.saleAmount - b.purchaseAmount - (b.factoryShippingAmount || 0) >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                           {b.saleAmount - b.purchaseAmount - (b.factoryShippingAmount || 0) >= 0 ? '+' : ''}{(b.saleAmount - b.purchaseAmount - (b.factoryShippingAmount || 0)).toLocaleString()}đ
-                         </span>
-                      </div>
-                   </div>
-                </div>
-              ))}
-            </div>
           </div>
         ) : activeSubTab === 'excelExport' ? (
           /* BÁO CÁO BÁN HÀNG */

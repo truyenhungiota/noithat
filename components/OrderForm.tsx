@@ -18,6 +18,8 @@ const OrderForm: React.FC<OrderFormProps> = ({ order, customers, suppliers, ship
   const [formData, setFormData] = useState<Partial<Order>>(
     order || {
       id: `HI${Math.floor(1000 + Math.random() * 9000)}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       customerId: '',
       supplierId: '',
       customerName: '',
@@ -86,7 +88,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ order, customers, suppliers, ship
       ...formData,
       items: [
         ...(formData.items || []),
-        { id: Date.now().toString(), name: '', category: '', dimensions: '', quantity: 1, salePrice: 0, purchasePrice: 0, unit: 'Bộ', imageUrl: '', color: '', options: '', productionNote: '' }
+        { id: Date.now().toString(), name: '', category: '', dimensions: '', quantity: 1, salePrice: 0, purchasePrice: 0, unit: 'Bộ', imageUrl: '', leatherImageUrl: '', color: '', options: '', productionNote: '' }
       ]
     });
   };
@@ -483,39 +485,102 @@ const OrderForm: React.FC<OrderFormProps> = ({ order, customers, suppliers, ship
               {(formData.items || []).map((item, index) => (
                 <div key={item.id} className="p-4 md:p-8 bg-white rounded-[2rem] md:rounded-[2.5rem] border-2 border-slate-100 shadow-sm relative group hover:border-blue-300 transition-all duration-300">
                   <div className="grid grid-cols-12 gap-4 md:gap-8">
-                    <div className="col-span-12 lg:col-span-3 space-y-4">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">Ảnh minh họa sản phẩm</label>
-                      <div 
-                        className="relative aspect-square rounded-[2rem] bg-slate-50 overflow-hidden border-2 border-slate-100 shadow-inner group-hover:border-blue-100 transition cursor-pointer group/image"
-                        onClick={() => document.getElementById(`upload-${item.id}`)?.click()}
-                      >
-                        {item.imageUrl ? (
-                          <img src={item.imageUrl} className="w-full h-full object-contain bg-white" />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 group-hover/image:text-blue-500 transition-colors">
-                            <ImageIcon className="w-12 h-12 mb-2" />
-                            <span className="text-[9px] font-black uppercase tracking-widest text-center px-4">TẢI ẢNH LÊN</span>
-                          </div>
-                        )}
+                    <div className="col-span-12 lg:col-span-3 space-y-6">
+                      {/* Ảnh minh họa sản phẩm */}
+                      <div className="space-y-3">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">Ảnh minh họa sản phẩm</label>
+                        <div 
+                          className="relative aspect-square rounded-[2rem] bg-slate-50 overflow-hidden border-2 border-slate-100 shadow-inner group-hover:border-blue-100 transition cursor-pointer group/image"
+                          onClick={() => document.getElementById(`upload-${item.id}`)?.click()}
+                        >
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} className="w-full h-full object-contain bg-white" />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 group-hover/image:text-blue-500 transition-colors">
+                              <ImageIcon className="w-12 h-12 mb-2" />
+                              <span className="text-[9px] font-black uppercase tracking-widest text-center px-4">TẢI ẢNH LÊN</span>
+                            </div>
+                          )}
+                          <input 
+                            type="file" 
+                            id={`upload-${item.id}`}
+                            className="hidden" 
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  updateItem(item.id, { imageUrl: reader.result as string });
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </div>
+                        <input type="text" placeholder="Dán link ảnh hoặc tải lên..." className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={item.imageUrl || ''} onChange={e => updateItem(item.id, { imageUrl: e.target.value })} />
+                      </div>
+
+                      {/* Ô tải hình ảnh màu da (Chỉ xuất hiện trong Yêu cầu sản xuất) */}
+                      <div className="space-y-3 pt-3 border-t border-slate-100">
+                        <div className="flex items-center justify-between ml-1">
+                          <label className="text-[9px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-1.5">
+                            <Palette className="w-3.5 h-3.5 text-amber-500" /> Ảnh màu da
+                          </label>
+                          <span className="text-[8px] font-bold text-slate-400 uppercase bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200/60">Chỉ hiện ở YCSX</span>
+                        </div>
+                        <div 
+                          className="relative aspect-square rounded-[1.75rem] bg-amber-50/40 overflow-hidden border-2 border-dashed border-amber-200/80 shadow-inner hover:border-amber-400 transition cursor-pointer group/leather"
+                          onClick={() => document.getElementById(`upload-leather-${item.id}`)?.click()}
+                        >
+                          {item.leatherImageUrl ? (
+                            <div className="relative w-full h-full group/preview">
+                              <img src={item.leatherImageUrl} className="w-full h-full object-contain bg-white" />
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  updateItem(item.id, { leatherImageUrl: '' });
+                                }}
+                                className="absolute top-2 right-2 p-1.5 bg-red-500/90 text-white rounded-lg opacity-0 group-hover/preview:opacity-100 transition shadow-md hover:bg-red-600"
+                                title="Xóa ảnh màu da"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-amber-400 group-hover/leather:text-amber-600 transition-colors p-3 text-center">
+                              <Palette className="w-8 h-8 mb-1.5" />
+                              <span className="text-[9px] font-black uppercase tracking-wider">TẢI ẢNH MÀU DA</span>
+                              <span className="text-[8px] font-bold text-slate-400 mt-0.5">Mẫu da, vải xưởng bọc</span>
+                            </div>
+                          )}
+                          <input 
+                            type="file" 
+                            id={`upload-leather-${item.id}`}
+                            className="hidden" 
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  updateItem(item.id, { leatherImageUrl: reader.result as string });
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </div>
                         <input 
-                          type="file" 
-                          id={`upload-${item.id}`}
-                          className="hidden" 
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                updateItem(item.id, { imageUrl: reader.result as string });
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          }}
+                          type="text" 
+                          placeholder="Dán link ảnh màu da..." 
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold focus:ring-2 focus:ring-amber-500 outline-none"
+                          value={item.leatherImageUrl || ''} 
+                          onChange={e => updateItem(item.id, { leatherImageUrl: e.target.value })} 
                         />
                       </div>
-                      <input type="text" placeholder="Dán link ảnh hoặc tải lên..." className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold focus:ring-2 focus:ring-blue-500 outline-none"
-                          value={item.imageUrl} onChange={e => updateItem(item.id, { imageUrl: e.target.value })} />
                     </div>
                     <div className="col-span-12 lg:col-span-9 grid grid-cols-12 gap-4 md:gap-6">
                       {/* Product Selection Logic */}

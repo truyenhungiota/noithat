@@ -24,6 +24,8 @@ export interface UserAccount {
   avatar?: string;
   phone: string;
   status: 'active' | 'inactive';
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface HandoverMedia {
@@ -45,6 +47,8 @@ export interface ShippingUnit {
   rating?: number;
   extraInfo?: string; // Thông tin mở rộng
   createdBy: string; // ID của người tạo
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Category {
@@ -85,6 +89,7 @@ export interface OrderItem {
   salePrice: number;    
   purchasePrice: number; 
   imageUrl?: string;
+  leatherImageUrl?: string; // Ảnh màu da (chỉ hiển thị trong Yêu cầu sản xuất)
   unit: string;
   color?: string;
   options?: string; 
@@ -139,6 +144,8 @@ export interface Order {
 
   handoverMedia?: HandoverMedia[];
   createdBy: string; // ID của người tạo
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Customer {
@@ -156,6 +163,8 @@ export interface Customer {
   extraInfo?: string; // Thông tin mở rộng
   status?: 'active' | 'inactive';
   createdBy: string; // ID của người tạo
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Supplier {
@@ -170,6 +179,8 @@ export interface Supplier {
   note?: string;
   extraInfo?: string; // Thông tin mở rộng
   createdBy: string; // ID của người tạo
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CompanySettings {

@@ -3,6 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Product, UserAccount, Category, UserRole } from '../types';
 import { Package, Search, Plus, Edit2, X, ChevronLeft, ChevronRight, Image as ImageIcon, Tag, LayoutGrid, User, FolderPlus, Trash2, Archive, CheckCircle, XCircle, ScanBarcode, Printer, Download } from 'lucide-react';
 import { Pagination } from './Pagination';
+import { compareNewestFirst } from '../lib/sortUtils';
 
 interface ProductManagerProps {
   products: Product[];
@@ -73,11 +74,13 @@ const ProductManager: React.FC<ProductManagerProps> = ({
 
   // --- PRODUCT LOGIC ---
   const filteredProducts = useMemo(() => 
-    products.filter(p => 
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      p.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.barcode && p.barcode.includes(searchTerm))
-    ),
+    products
+      .filter(p => 
+        p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        p.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.barcode && p.barcode.includes(searchTerm))
+      )
+      .sort(compareNewestFirst),
   [products, searchTerm]);
 
   const totalProductPages = Math.ceil(filteredProducts.length / itemsPerPage);
@@ -89,13 +92,17 @@ const ProductManager: React.FC<ProductManagerProps> = ({
   const handleSaveProduct = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingProduct?.id) {
-      onUpdateProduct(editingProduct as Product);
+      onUpdateProduct({
+        ...editingProduct,
+        updatedAt: new Date().toISOString()
+      } as Product);
     } else {
       const newProd = { 
         ...editingProduct, 
         id: `PROD${Date.now()}${Math.floor(Math.random() * 1000)}`, // Stronger Unique ID
         createdBy: currentUser.id,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       } as Product;
       onAddProduct(newProd);
     }
@@ -117,19 +124,25 @@ const ProductManager: React.FC<ProductManagerProps> = ({
 
   // --- CATEGORY LOGIC ---
   const filteredCategories = useMemo(() => 
-    categories.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase())),
+    categories
+      .filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      .sort(compareNewestFirst),
   [categories, searchTerm]);
 
   const handleSaveCategory = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingCategory?.id) {
-      onUpdateCategory(editingCategory as Category);
+      onUpdateCategory({
+        ...editingCategory,
+        updatedAt: new Date().toISOString()
+      } as Category);
     } else {
       const newCat = {
         ...editingCategory,
         id: `CAT${Date.now()}${Math.floor(Math.random() * 1000)}`, // Stronger Unique ID
         createdBy: currentUser.id,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       } as Category;
       onAddCategory(newCat);
     }

@@ -32,7 +32,8 @@ const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
     return acc;
   }, { revenue: 0, cost: 0, profit: 0, completed: 0, pending: 0, production: 0, shipping: 0 });
 
-  const chartData = orders.slice(-7).map(o => {
+  // Lấy 7 đơn hàng mới nhất và hiển thị theo trình tự thời gian từ trái sang phải
+  const chartData = orders.slice(0, 7).reverse().map(o => {
     const saleTotal = o.items.reduce((sum, i) => sum + (i.salePrice * i.quantity), 0);
     const costTotal = o.items.reduce((sum, i) => sum + (i.purchasePrice * i.quantity), 0);
     const customerShipping = o.shippingCost || 0;

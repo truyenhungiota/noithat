@@ -157,7 +157,13 @@ export const firestoreMutations = {
       };
       
       const cleanItem = removeUndefined(item);
-      const itemToSave = { ...cleanItem, id };
+      const now = new Date().toISOString();
+      const itemToSave = { 
+        ...cleanItem, 
+        id,
+        createdAt: cleanItem.createdAt || now,
+        updatedAt: now
+      };
       await setDoc(doc(db, collectionName, id), itemToSave);
       return itemToSave;
     } catch (error) {

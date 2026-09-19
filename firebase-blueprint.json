@@ -124,6 +124,7 @@
         "salePrice": { "type": "number" },
         "purchasePrice": { "type": "number" },
         "imageUrl": { "type": "string", "maxLength": 1024000 },
+        "leatherImageUrl": { "type": "string", "maxLength": 1024000 },
         "unit": { "type": "string", "maxLength": 32 },
         "color": { "type": "string", "maxLength": 64 },
         "options": { "type": "string", "maxLength": 512 },

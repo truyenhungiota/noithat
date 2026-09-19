@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { UserAccount, UserRole } from '../types';
 import { Users, Plus, Search, Mail, Phone, X, Edit2, Trash2, CheckCircle, ShieldAlert, ChevronLeft, ChevronRight, Lock, Eye, EyeOff, Save, AlertTriangle } from 'lucide-react';
 import { Pagination } from './Pagination';
+import { compareNewestFirst } from '../lib/sortUtils';
 
 interface UserManagerProps {
   currentUser: UserAccount;
@@ -27,12 +28,14 @@ const UserManager: React.FC<UserManagerProps> = ({ currentUser, users, onAddUser
   const isAdmin = currentUser.role === UserRole.ADMIN;
 
   const availableUsers = useMemo(() => {
-    if (isAdmin) return users;
-    return users.filter(u => u.id === currentUser.id || u.role === UserRole.ADMIN);
+    const list = isAdmin ? users : users.filter(u => u.id === currentUser.id || u.role === UserRole.ADMIN);
+    return [...list].sort(compareNewestFirst);
   }, [users, currentUser, isAdmin]);
 
   const filteredUsers = useMemo(() => 
-    availableUsers.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase())),
+    availableUsers
+      .filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()))
+      .sort(compareNewestFirst),
   [availableUsers, searchTerm]);
 
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
@@ -67,10 +70,19 @@ const UserManager: React.FC<UserManagerProps> = ({ currentUser, users, onAddUser
     }
 
     if (editingUser) {
-      onUpdateUser(editingUser);
+      onUpdateUser({
+        ...editingUser,
+        updatedAt: new Date().toISOString()
+      });
       setEditingUser(null);
     } else {
-      const user: UserAccount = { ...newUser, id: `USR${Math.floor(Math.random() * 100000)}`, status: 'active' } as UserAccount;
+      const user: UserAccount = { 
+        ...newUser, 
+        id: `USR${Date.now()}${Math.floor(Math.random() * 1000)}`, 
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      } as UserAccount;
       onAddUser(user);
     }
     

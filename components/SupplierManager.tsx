@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Supplier, Order, UserAccount, UserRole } from '../types';
 import { Factory, Phone, Search, Plus, List, Edit2, X, Trash2, MapPin, Package, Eye, ChevronLeft, ChevronRight, AlertCircle, Wallet, CalendarDays, Hash, Building2, User, CheckCircle2, CircleDollarSign } from 'lucide-react';
 import { Pagination } from './Pagination';
+import { compareNewestFirst, compareOrdersNewest, getEntityLatestActivityTime } from '../lib/sortUtils';
 
 interface SupplierManagerProps {
   suppliers: Supplier[];
@@ -37,22 +38,21 @@ const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, orders, on
   }, [selectedSupplierId, orderSearchTerm]);
 
   const sortedSuppliers = useMemo(() => {
-    const suppliersWithLatestDate = suppliers.map(sup => {
+    const suppliersWithScores = suppliers.map(sup => {
       const supOrders = orders.filter(o => o.supplierId === sup.id || o.supplierName === (sup.companyName || sup.name));
-      const latestOrder = supOrders.length > 0 
-        ? supOrders.reduce((latest, current) => {
-            return new Date(current.orderDate) > new Date(latest.orderDate) ? current : latest;
-          })
-        : null;
-      
+      const activityScore = getEntityLatestActivityTime(sup, supOrders);
       return {
         ...sup,
-        latestOrderDate: latestOrder ? new Date(latestOrder.orderDate).getTime() : 0,
-        latestOrderDateStr: latestOrder ? latestOrder.orderDate : null
+        activityScore
       };
     });
 
-    return suppliersWithLatestDate.sort((a, b) => b.latestOrderDate - a.latestOrderDate);
+    return suppliersWithScores.sort((a, b) => {
+      if (b.activityScore !== a.activityScore) {
+        return b.activityScore - a.activityScore;
+      }
+      return compareNewestFirst(a, b);
+    });
   }, [suppliers, orders]);
 
   useEffect(() => {
@@ -64,10 +64,12 @@ const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, orders, on
   const globalOrderSearchResults = useMemo(() => {
     const s = orderSearchTerm.trim().toLowerCase();
     if (!s) return [];
-    return orders.filter(o => 
-      o.id.toLowerCase().includes(s) || 
-      (o.id.startsWith('HI') && o.id.substring(2).includes(s))
-    );
+    return orders
+      .filter(o => 
+        o.id.toLowerCase().includes(s) || 
+        (o.id.startsWith('HI') && o.id.substring(2).includes(s))
+      )
+      .sort(compareOrdersNewest);
   }, [orders, orderSearchTerm]);
 
   const filteredSuppliers = useMemo(() => 
@@ -88,7 +90,7 @@ const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, orders, on
     if (!activeSupplier) return [];
     return orders
       .filter(o => o.supplierId === selectedSupplierId || o.supplierName === (activeSupplier.companyName || activeSupplier.name))
-      .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+      .sort(compareOrdersNewest);
   }, [orders, selectedSupplierId, activeSupplier]);
 
   const orderTotalPages = Math.ceil(allSupplierOrders.length / ordersPerPage);
@@ -104,11 +106,16 @@ const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, orders, on
         return;
     }
     if (editingSupplier?.id) {
-      onUpdateSupplier(editingSupplier as Supplier);
+      onUpdateSupplier({
+        ...editingSupplier,
+        updatedAt: new Date().toISOString()
+      } as Supplier);
     } else {
       const newSup = { 
         ...editingSupplier, 
-        id: `SUP${Date.now()}${Math.floor(Math.random() * 1000)}` // Stronger Unique ID
+        id: `SUP${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       } as Supplier;
       onAddSupplier(newSup);
     }

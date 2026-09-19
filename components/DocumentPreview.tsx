@@ -56,10 +56,24 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
     if (!documentRef.current) return;
     setExporting(true);
     try {
+      // Ensure all images are loaded before taking snapshot
+      const images = Array.from(documentRef.current.querySelectorAll('img'));
+      await Promise.all(
+        images.map(img => {
+          if (img.complete) return Promise.resolve();
+          return new Promise(resolve => {
+            img.onload = resolve;
+            img.onerror = resolve;
+          });
+        })
+      );
+
       const canvas = await html2canvas(documentRef.current, {
         scale: 2, 
         useCORS: true,
-        backgroundColor: '#ffffff'
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false
       });
       const link = document.createElement('a');
       link.download = `${activeDoc}_${order.id}.png`;
@@ -100,13 +114,48 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
           </div>
 
           <div className="flex flex-col lg:flex-row min-h-[600px]">
-            <div className="lg:w-1/2 bg-slate-100 flex items-center justify-center p-4 border-r-4 border-slate-900">
+            <div className="lg:w-1/2 bg-slate-100 flex flex-col items-center justify-center p-6 border-r-4 border-slate-900 gap-6">
+               {/* Ảnh minh họa sản phẩm */}
                {item.imageUrl ? (
-                 <img src={item.imageUrl} className="w-full h-full object-contain shadow-2xl rounded-lg" alt={item.name} />
+                 <div className="w-full flex flex-col items-center justify-center">
+                   <div className="w-full flex items-center justify-between mb-2 px-1">
+                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                       <ImageIcon className="w-3.5 h-3.5 text-blue-600" /> Ảnh kiểu dáng sản phẩm
+                     </span>
+                   </div>
+                   <img 
+                     src={item.imageUrl} 
+                     className="max-w-full max-h-[480px] w-auto h-auto object-contain rounded-xl shadow-lg border border-slate-200/80 bg-white" 
+                     alt={item.name} 
+                     crossOrigin="anonymous"
+                   />
+                 </div>
                ) : (
-                 <div className="text-slate-300 flex flex-col items-center">
-                   <ImageIcon className="w-32 h-32 mb-4" />
-                   <p className="font-black uppercase tracking-widest">Không có ảnh mẫu</p>
+                 <div className="text-slate-300 flex flex-col items-center py-12">
+                   <ImageIcon className="w-24 h-24 mb-3" />
+                   <p className="font-black uppercase tracking-widest text-xs">Không có ảnh mẫu kiểu dáng</p>
+                 </div>
+               )}
+
+               {/* Ảnh màu da đặt dưới hình ảnh sản phẩm */}
+               {item.leatherImageUrl && (
+                 <div className="w-full flex flex-col items-center justify-center pt-5 border-t-2 border-dashed border-slate-300">
+                   <div className="w-full flex items-center justify-between mb-2 px-1">
+                     <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 flex items-center gap-1.5 bg-amber-100/80 px-2 py-0.5 rounded">
+                       <Palette className="w-3.5 h-3.5 text-amber-600" /> Mẫu màu da / vật liệu bọc
+                     </span>
+                     {item.color && (
+                       <span className="text-[10px] font-bold text-slate-600">
+                         Mã màu: <b className="text-slate-900">{item.color}</b>
+                       </span>
+                     )}
+                   </div>
+                   <img 
+                     src={item.leatherImageUrl} 
+                     className="max-w-full max-h-[380px] w-auto h-auto object-contain rounded-xl shadow-lg border-2 border-amber-300/80 bg-white" 
+                     alt={`Màu da - ${item.name}`} 
+                     crossOrigin="anonymous"
+                   />
                  </div>
                )}
             </div>

@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Customer, Order, OrderStatus, UserAccount } from '../types';
 import { User, Phone, MapPin, Search, ShoppingBag, Eye, Edit2, X, Trash2, ChevronLeft, ChevronRight, Mail, Hash, Building2, ArrowRight, UserCheck, Camera, Clock, Package, Wallet, List, AlertCircle, Filter } from 'lucide-react';
 import { Pagination } from './Pagination';
+import { compareNewestFirst, compareOrdersNewest, getEntityLatestActivityTime } from '../lib/sortUtils';
 
 interface CustomerManagerProps {
   customers: Customer[];
@@ -48,22 +49,22 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
     return name;
   };
 
-  // Sắp xếp khách hàng: Khách có đơn hàng mới nhất lên đầu
+  // Sắp xếp khách hàng: Khách có hoạt động / đơn hàng / tạo mới nhất lên đầu
   const sortedCustomers = useMemo(() => {
-    const customersWithLatestDate = customers.map(cust => {
+    const customersWithScores = customers.map(cust => {
       const custOrders = orders.filter(o => o.customerId === cust.id);
-      const latestOrder = custOrders.length > 0 
-        ? custOrders.reduce((latest, current) => {
-            return new Date(current.orderDate) > new Date(latest.orderDate) ? current : latest;
-          })
-        : null;
-      
+      const activityScore = getEntityLatestActivityTime(cust, custOrders);
       return {
         ...cust,
-        latestOrderDate: latestOrder ? new Date(latestOrder.orderDate).getTime() : 0
+        activityScore
       };
     });
-    return customersWithLatestDate.sort((a, b) => b.latestOrderDate - a.latestOrderDate);
+    return customersWithScores.sort((a, b) => {
+      if (b.activityScore !== a.activityScore) {
+        return b.activityScore - a.activityScore;
+      }
+      return compareNewestFirst(a, b);
+    });
   }, [customers, orders]);
 
   // Lọc sidebar theo trạng thái hoạt động
@@ -99,18 +100,20 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
 
   const activeCustomer = sortedCustomers.find(c => c.id === selectedCustomerId);
 
-  // Tra cứu mã đơn hàng (Chỉ tìm theo mã đơn)
+  // Tra cứu mã đơn hàng (Chỉ tìm theo mã đơn, sắp xếp mới nhất lên đầu)
   const globalOrderSearchResults = useMemo(() => {
     const s = orderSearchTerm.trim().toLowerCase();
     if (!s) return [];
     return orders
       .filter(o => o.id.toLowerCase().includes(s) || (o.id.startsWith('HI') && o.id.substring(2).includes(s)))
-      .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+      .sort(compareOrdersNewest);
   }, [orders, orderSearchTerm]);
 
   const allSelectedCustomerOrders = useMemo(() => {
     if (!selectedCustomerId) return [];
-    return orders.filter(o => o.customerId === selectedCustomerId);
+    return orders
+      .filter(o => o.customerId === selectedCustomerId)
+      .sort(compareOrdersNewest);
   }, [orders, selectedCustomerId]);
 
   const displayOrdersBase = useMemo(() => {
@@ -118,7 +121,7 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
     if (!selectedCustomerId) return [];
     return orders
       .filter(o => o.customerId === selectedCustomerId)
-      .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+      .sort(compareOrdersNewest);
   }, [orders, selectedCustomerId, globalOrderSearchResults, orderSearchTerm]);
 
   const orderTotalPages = Math.ceil(displayOrdersBase.length / ordersPerPage);
@@ -130,12 +133,17 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingCustomer?.id) {
-      onUpdateCustomer(editingCustomer as Customer);
+      onUpdateCustomer({
+        ...editingCustomer,
+        updatedAt: new Date().toISOString()
+      } as Customer);
     } else {
       const newCust = { 
         ...editingCustomer, 
         id: `CUST${Date.now()}${Math.floor(Math.random() * 1000)}`, 
-        status: 'active' 
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       } as Customer;
       onAddCustomer(newCust);
     }

@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ShippingUnit, Order, UserAccount, UserRole } from '../types';
 import { Truck, Phone, Search, Plus, List, Edit2, X, Trash2, MapPin, Package, Eye, ChevronLeft, ChevronRight, MapPinned, CalendarDays, ArrowRight, CheckCircle2, CircleDollarSign } from 'lucide-react';
 import { Pagination } from './Pagination';
+import { compareNewestFirst, compareOrdersNewest, getEntityLatestActivityTime } from '../lib/sortUtils';
 
 interface ShippingManagerProps {
   units: ShippingUnit[];
@@ -36,22 +37,21 @@ const ShippingManager: React.FC<ShippingManagerProps> = ({ units, orders, onAddU
   }, [selectedUnitId, orderSearchTerm]);
 
   const sortedUnits = useMemo(() => {
-    const unitsWithLatestDate = units.map(unit => {
+    const unitsWithScores = units.map(unit => {
       const unitOrders = orders.filter(o => o.shippingUnitId === unit.id || o.shippingUnitName === unit.name);
-      const latestOrder = unitOrders.length > 0 
-        ? unitOrders.reduce((latest, current) => {
-            return new Date(current.orderDate) > new Date(latest.orderDate) ? current : latest;
-          })
-        : null;
-      
+      const activityScore = getEntityLatestActivityTime(unit, unitOrders);
       return {
         ...unit,
-        latestOrderDate: latestOrder ? new Date(latestOrder.orderDate).getTime() : 0,
-        latestOrderDateStr: latestOrder ? latestOrder.orderDate : null
+        activityScore
       };
     });
 
-    return unitsWithLatestDate.sort((a, b) => b.latestOrderDate - a.latestOrderDate);
+    return unitsWithScores.sort((a, b) => {
+      if (b.activityScore !== a.activityScore) {
+        return b.activityScore - a.activityScore;
+      }
+      return compareNewestFirst(a, b);
+    });
   }, [units, orders]);
 
   useEffect(() => {
@@ -81,7 +81,7 @@ const ShippingManager: React.FC<ShippingManagerProps> = ({ units, orders, onAddU
         (o.shippingUnitId && o.shippingUnitId === selectedUnitId) || 
         (o.shippingUnitName && o.shippingUnitName === activeUnit.name)
       )
-      .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+      .sort(compareOrdersNewest);
   }, [orders, selectedUnitId, activeUnit]);
 
   const orderTotalPages = Math.ceil(allUnitOrders.length / ordersPerPage);
@@ -93,11 +93,13 @@ const ShippingManager: React.FC<ShippingManagerProps> = ({ units, orders, onAddU
   const globalOrderSearchResults = useMemo(() => {
     const s = orderSearchTerm.trim().toLowerCase();
     if (!s) return [];
-    return orders.filter(o => 
-      o.id.toLowerCase().includes(s) ||
-      (o.id.startsWith('HI') && o.id.substring(2).includes(s)) ||
-      o.customerName.toLowerCase().includes(s)
-    );
+    return orders
+      .filter(o => 
+        o.id.toLowerCase().includes(s) ||
+        (o.id.startsWith('HI') && o.id.substring(2).includes(s)) ||
+        o.customerName.toLowerCase().includes(s)
+      )
+      .sort(compareOrdersNewest);
   }, [orders, orderSearchTerm]);
 
   const handleSave = (e: React.FormEvent) => {
@@ -107,9 +109,17 @@ const ShippingManager: React.FC<ShippingManagerProps> = ({ units, orders, onAddU
         return;
     }
     if (editingUnit?.id) {
-      onUpdateUnit(editingUnit as ShippingUnit);
+      onUpdateUnit({
+        ...editingUnit,
+        updatedAt: new Date().toISOString()
+      } as ShippingUnit);
     } else {
-      const newUnit = { ...editingUnit, id: `SHIP${Date.now()}` } as ShippingUnit;
+      const newUnit = { 
+        ...editingUnit, 
+        id: `SHIP${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      } as ShippingUnit;
       onAddUnit(newUnit);
     }
     setIsModalOpen(false);

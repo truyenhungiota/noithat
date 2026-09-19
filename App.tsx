@@ -17,6 +17,7 @@ import { Order, OrderStatus, Customer, Supplier, CompanySettings, UserAccount, U
 import { Plus, Search, Eye, X, ImageIcon, Camera, Trash2, ChevronLeft, ChevronRight, Edit3, FolderOpen, UploadCloud, Download, CheckCircle2, AlertCircle, CreditCard, Clock, Receipt, Sparkles } from 'lucide-react';
 import { useFirestoreStore, firestoreMutations } from './lib/useFirestoreStore';
 import { auth } from './lib/firebase';
+import { compareNewestFirst, compareOrdersNewest } from './lib/sortUtils';
 
 const DEFAULT_COMPANY: CompanySettings = {
   name: "NỘI THẤT HÙNG IOTA",
@@ -173,44 +174,38 @@ const App: React.FC = () => {
 
   const userOrders = useMemo(() => {
     if (!currentUser) return [];
-    if (currentUser.role === UserRole.ADMIN) return orders;
-    return orders.filter(o => o.createdBy === currentUser.id);
+    const list = currentUser.role === UserRole.ADMIN ? orders : orders.filter(o => o.createdBy === currentUser.id);
+    return [...list].sort(compareOrdersNewest);
   }, [orders, currentUser]);
 
   const userCustomers = useMemo(() => {
     if (!currentUser) return [];
-    if (currentUser.role === UserRole.ADMIN) return customers;
-    return customers.filter(c => c.createdBy === currentUser.id);
+    const list = currentUser.role === UserRole.ADMIN ? customers : customers.filter(c => c.createdBy === currentUser.id);
+    return [...list].sort(compareNewestFirst);
   }, [customers, currentUser]);
 
   const userSuppliers = useMemo(() => {
     if (!currentUser) return [];
-    if (currentUser.role === UserRole.ADMIN) return suppliers;
-    return suppliers.filter(s => s.createdBy === currentUser.id);
+    const list = currentUser.role === UserRole.ADMIN ? suppliers : suppliers.filter(s => s.createdBy === currentUser.id);
+    return [...list].sort(compareNewestFirst);
   }, [suppliers, currentUser]);
 
   const userShippingUnits = useMemo(() => {
     if (!currentUser) return [];
-    if (currentUser.role === UserRole.ADMIN) return shippingUnits;
-    return shippingUnits.filter(u => u.createdBy === currentUser.id);
+    const list = currentUser.role === UserRole.ADMIN ? shippingUnits : shippingUnits.filter(u => u.createdBy === currentUser.id);
+    return [...list].sort(compareNewestFirst);
   }, [shippingUnits, currentUser]);
 
   const userProducts = useMemo(() => {
     if (!currentUser) return [];
-    let list = products;
-    if (currentUser.role !== UserRole.ADMIN) {
-      list = products.filter(p => p.createdBy === currentUser.id);
-    }
-    return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    let list = currentUser.role === UserRole.ADMIN ? products : products.filter(p => p.createdBy === currentUser.id);
+    return [...list].sort(compareNewestFirst);
   }, [products, currentUser]);
 
   const userCategories = useMemo(() => {
     if (!currentUser) return [];
-    let list = categories;
-    if (currentUser.role !== UserRole.ADMIN) {
-      list = categories.filter(c => c.createdBy === currentUser.id);
-    }
-    return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    let list = currentUser.role === UserRole.ADMIN ? categories : categories.filter(c => c.createdBy === currentUser.id);
+    return [...list].sort(compareNewestFirst);
   }, [categories, currentUser]);
 
   // Đồng bộ trạng thái currentUser với Firebase Auth
@@ -288,11 +283,13 @@ const App: React.FC = () => {
 
   const filteredOrders = useMemo(() => {
     const s = searchTerm.toLowerCase().trim();
-    return userOrders.filter(o => 
-      (o.customerName || '').toLowerCase().includes(s) || 
-      (o.id || '').toLowerCase().includes(s) ||
-      (o.id && o.id.startsWith('HI') && o.id.substring(2).includes(s))
-    );
+    return userOrders
+      .filter(o => 
+        (o.customerName || '').toLowerCase().includes(s) || 
+        (o.id || '').toLowerCase().includes(s) ||
+        (o.id && o.id.startsWith('HI') && o.id.substring(2).includes(s))
+      )
+      .sort(compareOrdersNewest);
   }, [userOrders, searchTerm]);
 
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
@@ -303,7 +300,7 @@ const App: React.FC = () => {
 
   const handleSaveOrder = async (order: Order) => {
     const creatorId = order.createdBy || currentUser?.id || 'SYSTEM';
-    const orderWithCreator = { 
+    const orderWithCreator: Order = { 
         ...order, 
         createdBy: creatorId,
         customerId: order.customerId || '',
@@ -313,7 +310,7 @@ const App: React.FC = () => {
         supplierName: order.supplierName || '',
         orderDate: order.orderDate || new Date().toISOString().split('T')[0],
         deliveryDate: order.deliveryDate || new Date().toISOString().split('T')[0],
-        status: order.status || 'Chờ xử lý',
+        status: order.status || OrderStatus.PENDING,
         address: order.address || '',
         isVATEnabled: !!order.isVATEnabled,
         isInvoiced: !!order.isInvoiced,
@@ -323,6 +320,8 @@ const App: React.FC = () => {
         items: order.items || [],
         depositPaymentDate: order.depositPaymentDate || '',
         finalPaymentInvoiceDate: order.finalPaymentInvoiceDate || '',
+        createdAt: order.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     };
 
     const existingCustomer = customers.find(c => c.id === order.customerId);
@@ -338,7 +337,9 @@ const App: React.FC = () => {
         companyName: order.customerCompanyName || '',
         taxCode: order.customerTaxCode || '',
         status: 'active',
-        createdBy: creatorId
+        createdBy: creatorId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       
       try {
@@ -632,11 +633,37 @@ const App: React.FC = () => {
           categories={userCategories}
           currentUser={currentUser!}
           users={users}
-          onAddProduct={async (p) => { await firestoreMutations.saveItem('products', p); showNotification('Đã thêm sản phẩm mới'); }}
-          onUpdateProduct={async (p) => { await firestoreMutations.saveItem('products', p); showNotification('Đã cập nhật sản phẩm'); }}
+          onAddProduct={async (p) => { 
+            await firestoreMutations.saveItem('products', {
+              ...p,
+              createdAt: p.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            }); 
+            showNotification('Đã thêm sản phẩm mới'); 
+          }}
+          onUpdateProduct={async (p) => { 
+            await firestoreMutations.saveItem('products', {
+              ...p,
+              updatedAt: new Date().toISOString()
+            }); 
+            showNotification('Đã cập nhật sản phẩm'); 
+          }}
           onDeleteProduct={deleteProduct}
-          onAddCategory={async (c) => { await firestoreMutations.saveItem('categories', c); showNotification('Đã thêm danh mục mới'); }}
-          onUpdateCategory={async (c) => { await firestoreMutations.saveItem('categories', c); showNotification('Đã cập nhật danh mục'); }}
+          onAddCategory={async (c) => { 
+            await firestoreMutations.saveItem('categories', {
+              ...c,
+              createdAt: c.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            }); 
+            showNotification('Đã thêm danh mục mới'); 
+          }}
+          onUpdateCategory={async (c) => { 
+            await firestoreMutations.saveItem('categories', {
+              ...c,
+              updatedAt: new Date().toISOString()
+            }); 
+            showNotification('Đã cập nhật danh mục'); 
+          }}
           onDeleteCategory={deleteCategory}
         />;
       case 'shipping': 
@@ -648,7 +675,9 @@ const App: React.FC = () => {
               ...u, 
               name: u.name || '',
               phone: u.phone || '',
-              createdBy: currentUser!.id 
+              createdBy: currentUser!.id,
+              createdAt: u.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString()
             }); 
             showNotification('Đã thêm đơn vị vận chuyển'); 
           }} 
@@ -657,7 +686,8 @@ const App: React.FC = () => {
               ...u,
               name: u.name || '',
               phone: u.phone || '',
-              createdBy: u.createdBy || currentUser!.id
+              createdBy: u.createdBy || currentUser!.id,
+              updatedAt: new Date().toISOString()
             }); 
             showNotification('Đã cập nhật đơn vị vận chuyển'); 
           }} 
@@ -677,7 +707,9 @@ const App: React.FC = () => {
               name: s.name || '',
               phone: s.phone || '',
               address: s.address || '',
-              createdBy: currentUser!.id 
+              createdBy: currentUser!.id,
+              createdAt: s.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString()
             }); 
             showNotification('Đã thêm nhà xưởng'); 
           }} 
@@ -687,7 +719,8 @@ const App: React.FC = () => {
               name: s.name || '',
               phone: s.phone || '',
               address: s.address || '',
-              createdBy: s.createdBy || currentUser!.id
+              createdBy: s.createdBy || currentUser!.id,
+              updatedAt: new Date().toISOString()
             }); 
             showNotification('Đã cập nhật nhà xưởng'); 
           }} 
@@ -709,7 +742,9 @@ const App: React.FC = () => {
               name: c.name || '',
               phone: c.phone || '',
               address: c.address || '',
-              createdBy: currentUser!.id 
+              createdBy: currentUser!.id,
+              createdAt: c.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString()
             }); 
             showNotification('Đã thêm khách hàng mới'); 
           }} 
@@ -719,7 +754,8 @@ const App: React.FC = () => {
               name: updatedCust.name || '',
               phone: updatedCust.phone || '',
               address: updatedCust.address || '',
-              createdBy: updatedCust.createdBy || currentUser!.id
+              createdBy: updatedCust.createdBy || currentUser!.id,
+              updatedAt: new Date().toISOString()
             });
             showNotification('Đã cập nhật thông tin khách hàng');
           }}
@@ -729,7 +765,29 @@ const App: React.FC = () => {
           onDeleteOrder={deleteOrder} 
           onUpdateOrderStatus={updateOrderStatus} 
         />;
-      case 'users': return <UserManager currentUser={currentUser!} users={users} onAddUser={async (u) => { await firestoreMutations.saveItem('users', u); showNotification('Đã thêm người dùng mới'); }} onUpdateUser={async (u) => { await firestoreMutations.saveItem('users', u); showNotification('Đã cập nhật thông tin người dùng'); }} onDeleteUser={async (id) => { await firestoreMutations.deleteItem('users', id); showNotification('Đã xóa người dùng'); }} />;
+      case 'users': return <UserManager 
+        currentUser={currentUser!} 
+        users={users} 
+        onAddUser={async (u) => { 
+          await firestoreMutations.saveItem('users', {
+            ...u,
+            createdAt: u.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }); 
+          showNotification('Đã thêm người dùng mới'); 
+        }} 
+        onUpdateUser={async (u) => { 
+          await firestoreMutations.saveItem('users', {
+            ...u,
+            updatedAt: new Date().toISOString()
+          }); 
+          showNotification('Đã cập nhật thông tin người dùng'); 
+        }} 
+        onDeleteUser={async (id) => { 
+          await firestoreMutations.deleteItem('users', id); 
+          showNotification('Đã xóa người dùng'); 
+        }} 
+      />;
       case 'settings': return <Settings settings={currentCompanySettings} onSave={handleSaveSettings} />;
       default: return <Dashboard orders={userOrders} />;
     }
