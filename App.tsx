@@ -14,7 +14,7 @@ import DetailedReports from './components/DetailedReports';
 import Login from './components/Login';
 import { Pagination } from './components/Pagination';
 import { Order, OrderStatus, Customer, Supplier, CompanySettings, UserAccount, UserRole, HandoverMedia, ShippingUnit, Product, Category, OrderItem } from './types';
-import { Plus, Search, Eye, X, ImageIcon, Camera, Trash2, ChevronLeft, ChevronRight, Edit3, FolderOpen, UploadCloud, Download, CheckCircle2, AlertCircle, CreditCard, Clock, Receipt, Sparkles } from 'lucide-react';
+import { Plus, Search, Eye, X, ImageIcon, Camera, Trash2, ChevronLeft, ChevronRight, Edit3, FolderOpen, UploadCloud, Download, CheckCircle2, AlertCircle, CreditCard, Clock, Receipt, Sparkles, PackageCheck } from 'lucide-react';
 import { useFirestoreStore, firestoreMutations } from './lib/useFirestoreStore';
 import { auth } from './lib/firebase';
 import { compareNewestFirst, compareOrdersNewest } from './lib/sortUtils';
@@ -99,6 +99,7 @@ const App: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | undefined>();
   const [previewOrderId, setPreviewOrderId] = useState<string | null>(null);
+  const [previewDocType, setPreviewDocType] = useState<'quote' | 'purchase' | 'invoice' | 'production' | 'dispatch'>('quote');
   const [searchTerm, setSearchTerm] = useState('');
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
@@ -593,7 +594,8 @@ const App: React.FC = () => {
                         <td className="px-4 md:px-6 py-4 md:py-6">
                           <div className="flex justify-end gap-1.5 md:gap-2">
                             <button onClick={() => openPaymentModal(order)} title="Cập nhật thời gian cọc & xuất hóa đơn" className="p-2.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl transition shadow-sm"><CreditCard className="w-5 h-5" /></button>
-                            <button onClick={() => setPreviewOrderId(order.id)} title="Xem chứng từ" className="p-2.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl transition shadow-sm"><Eye className="w-5 h-5" /></button>
+                            <button onClick={() => { setPreviewDocType('dispatch'); setPreviewOrderId(order.id); }} title="Phiếu xuất kho (Thông tin xưởng)" className="p-2.5 bg-teal-50 text-teal-700 hover:bg-teal-700 hover:text-white rounded-xl transition shadow-sm"><PackageCheck className="w-5 h-5" /></button>
+                            <button onClick={() => { setPreviewDocType('quote'); setPreviewOrderId(order.id); }} title="Xem chứng từ (Báo giá, Đơn nhập, Phiếu xuất kho, Hóa đơn)" className="p-2.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl transition shadow-sm"><Eye className="w-5 h-5" /></button>
                             <button onClick={() => { setEditingOrder(order); setIsFormOpen(true); }} title="Sửa đơn hàng" className="p-2.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl transition shadow-sm"><Edit3 className="w-5 h-5" /></button>
                             <button onClick={() => deleteOrder(order.id)} title="Xóa đơn hàng" className="p-2.5 bg-red-50 text-red-500 hover:bg-red-600 hover:text-white rounded-xl transition shadow-sm"><Trash2 className="w-5 h-5" /></button>
                           </div>
@@ -816,6 +818,7 @@ const App: React.FC = () => {
           order={currentPreviewOrder} 
           company={previewCompanySettings} 
           supplier={suppliers.find(s => s.id === currentPreviewOrder.supplierId)} 
+          initialDoc={previewDocType}
           onClose={() => setPreviewOrderId(null)} 
         />
       )}
