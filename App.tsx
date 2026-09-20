@@ -480,14 +480,14 @@ const App: React.FC = () => {
         />;
       case 'orders':
         return (
-          <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
-            <div className="p-8 border-b flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="bg-white rounded-2xl md:rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
+            <div className="p-4 md:p-8 border-b flex flex-col md:flex-row justify-between items-center gap-4">
               <div className="relative flex-1 w-full max-w-xl">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input type="text" placeholder="Tìm tên khách hoặc số đơn hàng..." className="w-full pl-12 pr-6 py-3.5 bg-slate-50 border-0 rounded-2xl outline-none font-medium" value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }} />
+                <input type="text" placeholder="Tìm tên khách hoặc số đơn hàng..." className="w-full pl-12 pr-6 py-3 md:py-3.5 bg-slate-50 border-0 rounded-2xl outline-none font-medium text-sm" value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }} />
               </div>
               <div className="flex items-center gap-3 w-full md:w-auto">
-                <button onClick={() => { setEditingOrder(undefined); setIsFormOpen(true); }} className="px-8 py-3.5 bg-blue-600 text-white rounded-2xl font-black shadow-lg hover:bg-blue-700 transition flex items-center gap-2 uppercase text-xs tracking-widest">
+                <button onClick={() => { setEditingOrder(undefined); setIsFormOpen(true); }} className="w-full md:w-auto justify-center px-6 md:px-8 py-3 md:py-3.5 bg-blue-600 text-white rounded-2xl font-black shadow-lg hover:bg-blue-700 transition flex items-center gap-2 uppercase text-xs tracking-widest">
                   <Plus className="w-5 h-5" /> TẠO ĐƠN HÀNG
                 </button>
               </div>
@@ -509,11 +509,11 @@ const App: React.FC = () => {
                     return (
                       <tr key={order.id} className="hover:bg-blue-50/40 transition">
                         <td className="px-4 md:px-6 py-4 md:py-6 font-black text-blue-600">{order.id}</td>
-                        <td className="px-4 md:px-6 py-4 md:py-6 text-sm font-bold text-slate-800 uppercase min-w-[250px]">
+                        <td className="px-4 md:px-6 py-4 md:py-6 text-sm font-bold text-slate-800 uppercase min-w-[200px] md:min-w-[240px]">
                           <div className="space-y-2">
                             {(order.items || []).map((item, idx) => (
-                              <div key={idx} className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col gap-1 w-max min-w-full">
-                                <span className="text-xs font-bold text-slate-800 uppercase whitespace-normal">{item.name}</span>
+                              <div key={idx} className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col gap-1 w-full">
+                                <span className="text-xs font-bold text-slate-800 uppercase whitespace-normal break-words">{item.name}</span>
                                 <div className="flex flex-wrap gap-x-2 gap-y-1 text-[10px] text-slate-500 font-medium">
                                   <span>SL: <b className="text-blue-600">{item.quantity}</b> {item.unit}</span>
                                   {item.dimensions && <span>KT: {item.dimensions}</span>}
@@ -523,23 +523,23 @@ const App: React.FC = () => {
                             ))}
                           </div>
                         </td>
-                        <td className="px-4 md:px-6 py-4 md:py-6">
-                          <div className="space-y-1 max-w-[200px]">
-                            <p className="text-sm font-bold text-slate-800 truncate" title={order.customerName}>
+                        <td className="px-4 md:px-6 py-4 md:py-6 min-w-[160px]">
+                          <div className="space-y-1 max-w-[220px]">
+                            <p className="text-sm font-bold text-slate-800 break-words" title={order.customerName}>
                               {order.customerName}
                             </p>
                             {order.customerPhone && (
-                              <p className="text-xs font-semibold text-slate-600 truncate" title={order.customerPhone}>
+                              <p className="text-xs font-semibold text-slate-600 whitespace-nowrap" title={order.customerPhone}>
                                 📞 {order.customerPhone}
                               </p>
                             )}
                             {order.customerCompanyName && (
-                              <p className="text-[10px] font-bold text-blue-600 truncate" title={order.customerCompanyName}>
+                              <p className="text-[10px] font-bold text-blue-600 break-words" title={order.customerCompanyName}>
                                 🏢 {order.customerCompanyName}
                               </p>
                             )}
                             {order.address && (
-                              <p className="text-[10px] font-medium text-slate-500 truncate" title={order.address}>
+                              <p className="text-[10px] font-medium text-slate-500 line-clamp-2" title={order.address}>
                                 📍 {order.address}
                               </p>
                             )}

@@ -1049,20 +1049,20 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
         {activeSubTab === 'finance' ? (
           <>
             <div className="overflow-x-auto w-full">
-              <table className="w-full text-left min-w-[1000px]">
+              <table className="w-full text-left min-w-[1050px]">
                 <thead className="bg-slate-50 border-b">
                   <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                    <th className="px-6 py-4">Ngày đơn / Cọc</th>
-                    <th className="px-6 py-4">Mã đơn</th>
-                    <th className="px-6 py-4">Khách hàng</th>
-                    <th className="px-6 py-4">Nhà xưởng</th>
-                    <th className="px-6 py-4 text-center">TT Xưởng</th>
-                    <th className="px-6 py-4">Đơn vị giao</th>
-                    <th className="px-6 py-4 text-center">TT Ship</th>
-                    <th className="px-6 py-4 text-right">Doanh thu</th>
-                    <th className="px-6 py-4 text-right">Giá nhập</th>
-                    <th className="px-6 py-4 text-right">Phí VC xưởng</th>
-                    <th className="px-6 py-4 text-right">Lợi nhuận</th>
+                    <th className="px-4 py-4 whitespace-nowrap">Ngày đơn / Cọc</th>
+                    <th className="px-4 py-4 whitespace-nowrap">Mã đơn</th>
+                    <th className="px-4 py-4 min-w-[150px]">Khách hàng</th>
+                    <th className="px-4 py-4 min-w-[120px]">Nhà xưởng</th>
+                    <th className="px-3 py-4 text-center whitespace-nowrap">TT Xưởng</th>
+                    <th className="px-4 py-4 min-w-[110px]">Đơn vị giao</th>
+                    <th className="px-3 py-4 text-center whitespace-nowrap">TT Ship</th>
+                    <th className="px-4 py-4 text-right min-w-[120px] whitespace-nowrap">Doanh thu</th>
+                    <th className="px-4 py-4 text-right min-w-[120px] whitespace-nowrap">Giá nhập</th>
+                    <th className="px-4 py-4 text-right min-w-[110px] whitespace-nowrap">Phí VC xưởng</th>
+                    <th className="px-4 py-4 text-right min-w-[120px] whitespace-nowrap">Lợi nhuận</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1077,7 +1077,7 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                     
                     return (
                       <tr key={order.id} className="text-xs hover:bg-slate-50/50 transition-colors">
-                        <td className="px-6 py-5 text-slate-500 font-bold tabular-nums">
+                        <td className="px-4 py-4 text-slate-500 font-bold tabular-nums whitespace-nowrap">
                           <div>{new Date(order.orderDate).toLocaleDateString('vi-VN')}</div>
                           {order.depositPaymentDate && (
                             <div className="text-[10px] text-emerald-600 font-bold mt-0.5 flex items-center gap-1">
@@ -1088,33 +1088,33 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                         </td>
                         <td 
                           onClick={() => onViewOrder(order)}
-                          className="px-6 py-5 font-black text-blue-600 hover:text-blue-800 cursor-pointer underline underline-offset-4 decoration-blue-200 hover:decoration-blue-600 transition-all"
+                          className="px-4 py-4 font-black text-blue-600 hover:text-blue-800 cursor-pointer underline underline-offset-4 decoration-blue-200 hover:decoration-blue-600 transition-all whitespace-nowrap"
                           title="Xem chi tiết hóa đơn"
                         >
                           {order.id}
                         </td>
-                        <td className="px-6 py-5 font-black text-slate-800 uppercase">{order.customerName}</td>
-                        <td className="px-6 py-5 font-bold text-amber-600 uppercase text-[10px]">{order.supplierName}</td>
-                        <td className="px-6 py-5 text-center">
+                        <td className="px-4 py-4 font-black text-slate-800 uppercase leading-snug">{order.customerName}</td>
+                        <td className="px-4 py-4 font-bold text-amber-600 uppercase text-[10px] leading-tight">{order.supplierName}</td>
+                        <td className="px-3 py-4 text-center">
                            {order.isSupplierPaid ? (
                              <span className="flex justify-center text-emerald-500" title="Đã thanh toán cho xưởng"><CheckCircle2 className="w-4 h-4" /></span>
                            ) : (
                              <span className="flex justify-center text-slate-300" title="Chưa thanh toán"><Circle className="w-4 h-4" /></span>
                            )}
                         </td>
-                        <td className="px-6 py-5 font-bold text-indigo-600 uppercase text-[10px]">{order.shippingUnitName || 'Tự giao'}</td>
-                        <td className="px-6 py-5 text-center">
+                        <td className="px-4 py-4 font-bold text-indigo-600 uppercase text-[10px] leading-tight">{order.shippingUnitName || 'Tự giao'}</td>
+                        <td className="px-3 py-4 text-center">
                            {order.isShippingPaid ? (
                              <span className="flex justify-center text-emerald-500" title="Đã thanh toán ship"><CheckCircle2 className="w-4 h-4" /></span>
                            ) : (
                              <span className="flex justify-center text-slate-300" title="Chưa thanh toán"><Circle className="w-4 h-4" /></span>
                            )}
                         </td>
-                        <td className="px-6 py-5 text-right font-black text-blue-700 tabular-nums">{revenue.toLocaleString()}đ</td>
-                        <td className="px-6 py-5 text-right font-medium text-amber-700 tabular-nums">{purchase.toLocaleString()}đ</td>
-                        <td className="px-6 py-5 text-right font-medium text-indigo-600 tabular-nums">{factoryShipping.toLocaleString()}đ</td>
-                        <td className={`px-6 py-5 text-right font-black tabular-nums ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`} title="Doanh thu - Giá nhập - Phí VC xưởng">
-                          {profit >= 0 ? '+' : ''}{profit.toLocaleString()}đ
+                        <td className="px-4 py-4 text-right font-black text-blue-700 tabular-nums whitespace-nowrap">{revenue.toLocaleString()} đ</td>
+                        <td className="px-4 py-4 text-right font-medium text-amber-700 tabular-nums whitespace-nowrap">{purchase.toLocaleString()} đ</td>
+                        <td className="px-4 py-4 text-right font-medium text-indigo-600 tabular-nums whitespace-nowrap">{factoryShipping.toLocaleString()} đ</td>
+                        <td className={`px-4 py-4 text-right font-black tabular-nums whitespace-nowrap ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`} title="Doanh thu - Giá nhập - Phí VC xưởng">
+                          {profit >= 0 ? '+' : ''}{profit.toLocaleString()} đ
                         </td>
                       </tr>
                     );
@@ -1127,19 +1127,19 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                 </tbody>
                 <tfoot className="bg-slate-100/90 border-t-2 border-slate-300 font-black">
                   <tr className="text-xs text-slate-800">
-                    <td colSpan={7} className="px-6 py-4 text-right uppercase tracking-wider text-slate-600 font-black text-xs">
+                    <td colSpan={7} className="px-4 py-4 text-right uppercase tracking-wider text-slate-600 font-black text-xs">
                       Tổng cộng ({mainFilteredData.length} đơn hàng):
                     </td>
-                    <td className="px-6 py-4 text-right font-black text-blue-700 text-sm tabular-nums">
+                    <td className="px-4 py-4 text-right font-black text-blue-700 text-sm tabular-nums whitespace-nowrap">
                       {reportStats.totalSalePrice.toLocaleString()} đ
                     </td>
-                    <td className="px-6 py-4 text-right font-black text-amber-700 text-sm tabular-nums">
+                    <td className="px-4 py-4 text-right font-black text-amber-700 text-sm tabular-nums whitespace-nowrap">
                       {reportStats.totalPurchasePrice.toLocaleString()} đ
                     </td>
-                    <td className="px-6 py-4 text-right font-black text-indigo-700 text-sm tabular-nums">
+                    <td className="px-4 py-4 text-right font-black text-indigo-700 text-sm tabular-nums whitespace-nowrap">
                       {reportStats.totalShipping.toLocaleString()} đ
                     </td>
-                    <td className={`px-6 py-4 text-right font-black text-base tabular-nums ${reportStats.totalProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`} title="Tổng Doanh thu - Tổng Giá nhập - Tổng Phí VC xưởng">
+                    <td className={`px-4 py-4 text-right font-black text-sm md:text-base tabular-nums whitespace-nowrap ${reportStats.totalProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`} title="Tổng Doanh thu - Tổng Giá nhập - Tổng Phí VC xưởng">
                       {reportStats.totalProfit >= 0 ? '+' : ''}{reportStats.totalProfit.toLocaleString()} đ
                     </td>
                   </tr>
@@ -1179,36 +1179,36 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
           </>
         ) : activeSubTab === 'factoryShipping' ? (
           <div className="overflow-x-auto w-full">
-            <table className="w-full text-left min-w-[1000px]">
+            <table className="w-full text-left min-w-[850px]">
               <thead className="bg-slate-50 border-b">
                 <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                  <th className="px-6 py-4">Ngày đơn</th>
-                  <th className="px-6 py-4">Mã đơn</th>
-                  <th className="px-6 py-4">Khách hàng</th>
-                  <th className="px-6 py-4">Nhà xưởng</th>
-                  <th className="px-6 py-4 text-right">Phí VC xưởng (đ)</th>
-                  <th className="px-6 py-4 text-center">Trạng thái</th>
+                  <th className="px-4 py-4 whitespace-nowrap">Ngày đơn</th>
+                  <th className="px-4 py-4 whitespace-nowrap">Mã đơn</th>
+                  <th className="px-4 py-4">Khách hàng</th>
+                  <th className="px-4 py-4">Nhà xưởng</th>
+                  <th className="px-4 py-4 text-right whitespace-nowrap">Phí VC xưởng (đ)</th>
+                  <th className="px-4 py-4 text-center whitespace-nowrap">Trạng thái</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {mainFilteredData.filter(o => o.factoryShippingCost && o.factoryShippingCost > 0).map(order => (
                   <tr key={order.id} className="hover:bg-slate-50 transition cursor-pointer group" onClick={() => onViewOrder(order)}>
-                    <td className="px-6 py-4">
-                      <p className="font-bold text-slate-800 text-sm">{order.orderDate.split('T')[0]}</p>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <p className="font-bold text-slate-800 text-sm tabular-nums">{order.orderDate.split('T')[0]}</p>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4 whitespace-nowrap">
                       <p className="font-black text-blue-600 text-sm group-hover:underline">{order.id}</p>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4">
                       <p className="font-bold text-slate-800 text-sm">{order.customerName}</p>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4">
                       <p className="font-bold text-slate-800 text-sm">{order.supplierName}</p>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <p className="font-black text-indigo-600">{order.factoryShippingCost?.toLocaleString()}</p>
+                    <td className="px-4 py-4 text-right whitespace-nowrap">
+                      <p className="font-black text-indigo-600 tabular-nums">{order.factoryShippingCost?.toLocaleString()} đ</p>
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-4 py-4 text-center whitespace-nowrap">
                       <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                          order.isShippingPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
                        }`}>
@@ -1321,11 +1321,11 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                     <th className="px-4 py-3.5 min-w-[180px]">Địa chỉ</th>
                     <th className="px-4 py-3.5 min-w-[160px]">Ngày cọc - Ngày TT</th>
                     <th className="px-5 py-3.5 min-w-[190px]">Sản phẩm</th>
-                    <th className="px-4 py-3.5 text-center w-24">Số lượng</th>
-                    <th className="px-4 py-3.5 text-right w-28">Đơn giá</th>
-                    <th className="px-5 py-3.5 text-right w-32">Thành tiền</th>
-                    <th className="px-4 py-3.5 text-right w-28">Phí ship</th>
-                    <th className="px-5 py-3.5 text-right w-32">Tổng tiền đơn</th>
+                    <th className="px-4 py-3.5 text-center w-24 whitespace-nowrap">Số lượng</th>
+                    <th className="px-4 py-3.5 text-right min-w-[110px] whitespace-nowrap">Đơn giá</th>
+                    <th className="px-4 py-3.5 text-right min-w-[120px] whitespace-nowrap">Thành tiền</th>
+                    <th className="px-4 py-3.5 text-right min-w-[100px] whitespace-nowrap">Phí ship</th>
+                    <th className="px-4 py-3.5 text-right min-w-[130px] whitespace-nowrap">Tổng tiền đơn</th>
                     <th className="px-3 py-3.5 text-right no-print w-12"></th>
                   </tr>
                 </thead>
@@ -1451,25 +1451,25 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                               </td>
 
                               {/* 9. Đơn giá */}
-                              <td className={`px-4 py-3.5 text-right font-bold text-slate-700 tabular-nums ${itemIndex > 0 ? 'border-t border-slate-100' : ''}`}>
+                              <td className={`px-4 py-3.5 text-right font-bold text-slate-700 tabular-nums whitespace-nowrap ${itemIndex > 0 ? 'border-t border-slate-100' : ''}`}>
                                 {item.unitPrice.toLocaleString()} đ
                               </td>
 
                               {/* 10. Thành tiền */}
-                              <td className={`px-5 py-3.5 text-right font-black text-emerald-700 text-sm tabular-nums ${itemIndex > 0 ? 'border-t border-slate-100' : ''}`}>
+                              <td className={`px-4 py-3.5 text-right font-black text-emerald-700 text-sm tabular-nums whitespace-nowrap ${itemIndex > 0 ? 'border-t border-slate-100' : ''}`}>
                                 {item.totalPrice.toLocaleString()} đ
                               </td>
 
                               {/* 11. Phí ship */}
                               {itemIndex === 0 && (
-                                <td rowSpan={row.items.length} className="px-4 py-3.5 text-right font-bold text-slate-500 tabular-nums align-top">
+                                <td rowSpan={row.items.length} className="px-4 py-3.5 text-right font-bold text-slate-500 tabular-nums align-top whitespace-nowrap">
                                   {(row.shippingCost || 0) > 0 ? `${(row.shippingCost || 0).toLocaleString()} đ` : '—'}
                                 </td>
                               )}
 
                               {/* 12. Tổng tiền đơn */}
                               {itemIndex === 0 && (
-                                <td rowSpan={row.items.length} className="px-5 py-3.5 text-right font-black text-blue-700 text-sm tabular-nums align-top">
+                                <td rowSpan={row.items.length} className="px-4 py-3.5 text-right font-black text-blue-700 text-sm tabular-nums align-top whitespace-nowrap">
                                   {(row.items.reduce((s, i) => s + i.totalPrice, 0) + (row.shippingCost || 0)).toLocaleString()} đ
                                 </td>
                               )}
@@ -1608,13 +1608,13 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
               <table className="w-full text-left min-w-[900px]">
                 <thead className="bg-slate-50 border-b">
                   <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                    <th className="px-4 py-3.5 text-center w-14">STT</th>
-                    <th className="px-5 py-3.5 w-36">Mã đơn</th>
-                    <th className="px-6 py-3.5">Tên khách hàng</th>
-                    <th className="px-6 py-3.5">Tên sản phẩm</th>
-                    <th className="px-4 py-3.5 text-center w-28">Số lượng</th>
-                    <th className="px-6 py-3.5 text-right w-36">Giá tiền</th>
-                    <th className="px-6 py-3.5 text-right w-44">Thành tiền</th>
+                    <th className="px-4 py-3.5 text-center w-14 whitespace-nowrap">STT</th>
+                    <th className="px-5 py-3.5 w-36 whitespace-nowrap">Mã đơn</th>
+                    <th className="px-6 py-3.5 min-w-[160px]">Tên khách hàng</th>
+                    <th className="px-6 py-3.5 min-w-[180px]">Tên sản phẩm</th>
+                    <th className="px-4 py-3.5 text-center w-24 whitespace-nowrap">Số lượng</th>
+                    <th className="px-6 py-3.5 text-right min-w-[120px] whitespace-nowrap">Giá tiền</th>
+                    <th className="px-6 py-3.5 text-right min-w-[130px] whitespace-nowrap">Thành tiền</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1667,10 +1667,10 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
                                   {item.quantity} {item.unit || 'cái'}
                                 </span>
                               </td>
-                              <td className={`px-6 py-3.5 text-right font-bold text-slate-700 tabular-nums ${itemIdx > 0 ? 'border-t border-slate-100' : ''}`}>
+                              <td className={`px-4 py-3.5 text-right font-bold text-slate-700 tabular-nums whitespace-nowrap ${itemIdx > 0 ? 'border-t border-slate-100' : ''}`}>
                                 {item.purchasePrice.toLocaleString()} đ
                               </td>
-                              <td className={`px-6 py-3.5 text-right font-black text-blue-700 text-sm tabular-nums ${itemIdx > 0 ? 'border-t border-slate-100' : ''}`}>
+                              <td className={`px-4 py-3.5 text-right font-black text-blue-700 text-sm tabular-nums whitespace-nowrap ${itemIdx > 0 ? 'border-t border-slate-100' : ''}`}>
                                 {item.itemTotalPurchase.toLocaleString()} đ
                               </td>
                             </tr>

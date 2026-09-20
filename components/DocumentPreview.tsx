@@ -57,7 +57,8 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
     setExporting(true);
     try {
       // Ensure all images are loaded before taking snapshot
-      const images = Array.from(documentRef.current.querySelectorAll('img'));
+      const exportElement = documentRef.current;
+      const images = Array.from(exportElement.querySelectorAll('img'));
       await Promise.all(
         images.map(img => {
           if (img.complete) return Promise.resolve();
@@ -68,17 +69,43 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
         })
       );
 
-      const canvas = await html2canvas(documentRef.current, {
-        scale: 2, 
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        logging: false
-      });
-      const link = document.createElement('a');
-      link.download = `${activeDoc}_${order.id}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+      // Nếu là yêu cầu sản xuất và có các thẻ sản phẩm riêng biệt, xuất từng thẻ hoặc xuất phần nội dung xử lý không có khoảng trắng thừa
+      const productionCards = exportElement.querySelectorAll('.production-card');
+      if (activeDoc === 'production' && productionCards.length > 0) {
+        for (let i = 0; i < productionCards.length; i++) {
+          const card = productionCards[i] as HTMLElement;
+          const canvas = await html2canvas(card, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+            logging: false,
+            windowWidth: card.scrollWidth,
+            windowHeight: card.scrollHeight
+          });
+          const link = document.createElement('a');
+          const itemSuffix = productionCards.length > 1 ? `_item_${i + 1}` : '';
+          link.download = `yeu_cau_san_xuat_${order.id}${itemSuffix}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+          // Nghỉ ngắn giữa các lần tải file nếu có nhiều sản phẩm
+          if (i < productionCards.length - 1) {
+            await new Promise(r => setTimeout(r, 400));
+          }
+        }
+      } else {
+        const canvas = await html2canvas(exportElement, {
+          scale: 2, 
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          logging: false
+        });
+        const link = document.createElement('a');
+        link.download = `${activeDoc}_${order.id}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      }
     } catch (err) {
       console.error('Export failed:', err);
       alert('Không thể xuất ảnh HD. Vui lòng thử lại.');
@@ -88,33 +115,33 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
   };
 
   const renderProductionSheet = () => (
-    <div className="space-y-12">
+    <div className="space-y-8 bg-transparent">
       {order.items.map((item, idx) => (
-        <div key={item.id} className="bg-white border-[10px] border-slate-900 overflow-hidden printable mb-12 page-break-after-always">
-          <div className="bg-slate-900 text-white p-6 flex justify-between items-center">
+        <div key={item.id} className="production-card bg-white border-[8px] md:border-[10px] border-slate-900 overflow-hidden printable mb-8 last:mb-0 shadow-xl page-break-after-always">
+          <div className="bg-slate-900 text-white p-4 md:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-4">
               {company.logoUrl ? (
-                <div className="w-16 h-16 bg-white rounded-xl p-1 shrink-0 overflow-hidden flex items-center justify-center">
+                <div className="w-14 h-14 md:w-16 md:h-16 bg-white rounded-xl p-1 shrink-0 overflow-hidden flex items-center justify-center">
                    <img src={company.logoUrl} className="w-full h-full object-contain" alt="Logo" />
                 </div>
               ) : (
                 <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-900 font-black text-xl tracking-tighter shrink-0">HI</div>
               )}
               <div>
-                <h2 className="text-3xl font-black uppercase tracking-widest">YÊU CẦU SẢN XUẤT - {order.id}</h2>
+                <h2 className="text-xl md:text-2xl font-black uppercase tracking-widest">YÊU CẦU SẢN XUẤT - {order.id}</h2>
                 <p className="text-xs font-bold text-amber-400 uppercase tracking-widest">XƯỞNG SẢN XUẤT: {order.supplierName}</p>
               </div>
             </div>
-            <div className="text-right flex items-center gap-4">
+            <div className="text-left sm:text-right flex items-center gap-4 shrink-0">
               <div className="bg-amber-500 text-slate-900 px-4 py-2 rounded-xl">
                 <p className="text-[10px] font-black uppercase tracking-widest">Ngày giao hàng</p>
-                <p className="text-xl font-black tabular-nums">{new Date(order.deliveryDate).toLocaleDateString('vi-VN')}</p>
+                <p className="text-lg md:text-xl font-black tabular-nums">{new Date(order.deliveryDate).toLocaleDateString('vi-VN')}</p>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-col lg:flex-row min-h-[600px]">
-            <div className="lg:w-1/2 bg-slate-100 flex flex-col items-center justify-center p-6 border-r-4 border-slate-900 gap-6">
+          <div className="flex flex-col lg:flex-row">
+            <div className="lg:w-1/2 bg-slate-100 flex flex-col items-center justify-center p-4 md:p-6 border-b-4 lg:border-b-0 lg:border-r-4 border-slate-900 gap-5">
                {/* Ảnh minh họa sản phẩm */}
                {item.imageUrl ? (
                  <div className="w-full flex flex-col items-center justify-center">
@@ -125,21 +152,21 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
                    </div>
                    <img 
                      src={item.imageUrl} 
-                     className="max-w-full max-h-[480px] w-auto h-auto object-contain rounded-xl shadow-lg border border-slate-200/80 bg-white" 
+                     className="max-w-full max-h-[360px] md:max-h-[420px] w-auto h-auto object-contain rounded-xl shadow-md border border-slate-200/80 bg-white" 
                      alt={item.name} 
                      crossOrigin="anonymous"
                    />
                  </div>
                ) : (
-                 <div className="text-slate-300 flex flex-col items-center py-12">
-                   <ImageIcon className="w-24 h-24 mb-3" />
+                 <div className="text-slate-300 flex flex-col items-center py-8">
+                   <ImageIcon className="w-16 h-16 mb-2" />
                    <p className="font-black uppercase tracking-widest text-xs">Không có ảnh mẫu kiểu dáng</p>
                  </div>
                )}
 
                {/* Ảnh màu da đặt dưới hình ảnh sản phẩm */}
                {item.leatherImageUrl && (
-                 <div className="w-full flex flex-col items-center justify-center pt-5 border-t-2 border-dashed border-slate-300">
+                 <div className="w-full flex flex-col items-center justify-center pt-4 border-t-2 border-dashed border-slate-300">
                    <div className="w-full flex items-center justify-between mb-2 px-1">
                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 flex items-center gap-1.5 bg-amber-100/80 px-2 py-0.5 rounded">
                        <Palette className="w-3.5 h-3.5 text-amber-600" /> Mẫu màu da / vật liệu bọc
@@ -152,7 +179,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
                    </div>
                    <img 
                      src={item.leatherImageUrl} 
-                     className="max-w-full max-h-[380px] w-auto h-auto object-contain rounded-xl shadow-lg border-2 border-amber-300/80 bg-white" 
+                     className="max-w-full max-h-[300px] md:max-h-[350px] w-auto h-auto object-contain rounded-xl shadow-md border-2 border-amber-300/80 bg-white" 
                      alt={`Màu da - ${item.name}`} 
                      crossOrigin="anonymous"
                    />
@@ -160,51 +187,51 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
                )}
             </div>
 
-            <div className="lg:w-1/2 p-10 space-y-8 flex flex-col justify-between">
-               <div className="space-y-6">
-                  <div className="space-y-1 border-b-2 border-slate-100 pb-4">
+            <div className="lg:w-1/2 p-6 md:p-8 space-y-6 flex flex-col justify-between">
+               <div className="space-y-5">
+                  <div className="space-y-1 border-b-2 border-slate-100 pb-3">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tên sản phẩm</p>
-                    <p className="text-3xl font-black text-slate-900 uppercase tracking-tight leading-tight">{item.name}</p>
+                    <p className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tight leading-tight">{item.name}</p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-8">
+                  <div className="grid grid-cols-2 gap-4 md:gap-6">
                     <div className="space-y-1">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Số lượng</p>
-                      <p className="text-4xl font-black text-blue-600">{item.quantity} <span className="text-lg text-slate-400">{item.unit}</span></p>
+                      <p className="text-3xl md:text-4xl font-black text-blue-600">{item.quantity} <span className="text-base md:text-lg text-slate-400">{item.unit}</span></p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Màu sắc</p>
-                      <p className="text-2xl font-black text-slate-800 flex items-center gap-2"><Palette className="w-6 h-6 text-amber-500" /> {item.color || 'Theo mẫu'}</p>
+                      <p className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2"><Palette className="w-5 h-5 text-amber-500 shrink-0" /> {item.color || 'Theo mẫu'}</p>
                     </div>
                   </div>
 
                   <div className="space-y-1">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Ruler className="w-4 h-4" /> Kích thước chi tiết</p>
-                    <p className="text-2xl font-black text-slate-900 italic underline decoration-blue-200 underline-offset-4">{item.dimensions || 'Theo bản vẽ'}</p>
+                    <p className="text-xl md:text-2xl font-black text-slate-900 italic underline decoration-blue-200 underline-offset-4">{item.dimensions || 'Theo bản vẽ'}</p>
                   </div>
 
                   <div className="space-y-4">
-                    <div className="bg-blue-50/50 p-5 rounded-2xl border-l-8 border-blue-600">
-                       <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <div className="bg-blue-50/50 p-4 rounded-2xl border-l-8 border-blue-600">
+                       <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1 flex items-center gap-2">
                          <ListChecks className="w-4 h-4" /> Tùy chọn yêu cầu:
                        </p>
-                       <ul className="text-sm font-bold text-slate-700 space-y-2 list-disc pl-5">
+                       <ul className="text-sm font-bold text-slate-700 space-y-1.5 list-disc pl-5">
                           {item.options ? item.options.split('\n').map((opt, i) => <li key={i}>{opt}</li>) : <li className="italic text-slate-400">Không có tùy chọn thêm</li>}
                        </ul>
                     </div>
 
-                    <div className="bg-red-50/50 p-5 rounded-2xl border-l-8 border-red-600">
-                       <p className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <div className="bg-red-50/50 p-4 rounded-2xl border-l-8 border-red-600">
+                       <p className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1 flex items-center gap-2">
                          <AlertTriangle className="w-4 h-4" /> Lưu ý quan trọng cho xưởng:
                        </p>
-                       <ul className="text-sm font-black text-red-800 space-y-2 list-disc pl-5">
+                       <ul className="text-sm font-black text-red-800 space-y-1.5 list-disc pl-5">
                           {item.productionNote ? item.productionNote.split('\n').map((note, i) => <li key={i}>{note}</li>) : <li className="italic text-slate-400">Không có lưu ý đặc biệt</li>}
                        </ul>
                     </div>
                   </div>
                </div>
 
-               <div className="pt-6 border-t border-slate-100 text-center">
+               <div className="pt-4 border-t border-slate-100 text-center">
                   <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Sản xuất bởi: {order.supplierName} - HungIota Pro System</p>
                </div>
             </div>
@@ -717,42 +744,45 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
   );
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
-      <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-5xl h-[95vh] flex flex-col overflow-hidden border border-slate-100">
-        <div className="flex justify-between items-center p-6 bg-slate-50 border-b no-print">
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => setActiveDoc('quote')} className={`flex items-center gap-2 px-6 py-2 rounded-xl font-black transition-all text-xs uppercase ${activeDoc === 'quote' ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-400'}`}>
-              <FileText className="w-4 h-4" /> BÁO GIÁ
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-[60]">
+      <div className="bg-white rounded-2xl md:rounded-[2.5rem] shadow-2xl w-full max-w-5xl h-[98vh] md:h-[95vh] flex flex-col overflow-hidden border border-slate-100">
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center p-3 sm:p-6 bg-slate-50 border-b gap-3 no-print">
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
+            <button onClick={() => setActiveDoc('quote')} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 rounded-xl font-black transition-all text-[10px] sm:text-xs uppercase ${activeDoc === 'quote' ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-500 hover:bg-slate-100'}`}>
+              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> BÁO GIÁ
             </button>
-            <button onClick={() => setActiveDoc('purchase')} className={`flex items-center gap-2 px-6 py-2 rounded-xl font-black transition-all text-xs uppercase ${activeDoc === 'purchase' ? 'bg-amber-600 text-white shadow-lg' : 'bg-white text-slate-400'}`}>
-              <Truck className="w-4 h-4" /> ĐƠN NHẬP
+            <button onClick={() => setActiveDoc('purchase')} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 rounded-xl font-black transition-all text-[10px] sm:text-xs uppercase ${activeDoc === 'purchase' ? 'bg-amber-600 text-white shadow-lg' : 'bg-white text-slate-500 hover:bg-slate-100'}`}>
+              <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> ĐƠN NHẬP
             </button>
-            <button onClick={() => setActiveDoc('production')} className={`flex items-center gap-2 px-6 py-2 rounded-xl font-black transition-all text-xs uppercase ${activeDoc === 'production' ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-400'}`}>
-              <ImageIcon className="w-4 h-4" /> YÊU CẦU SẢN XUẤT
+            <button onClick={() => setActiveDoc('production')} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 rounded-xl font-black transition-all text-[10px] sm:text-xs uppercase ${activeDoc === 'production' ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-500 hover:bg-slate-100'}`}>
+              <ImageIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> YÊU CẦU SẢN XUẤT
             </button>
-            <button onClick={() => setActiveDoc('invoice')} className={`flex items-center gap-2 px-6 py-2 rounded-xl font-black transition-all text-xs uppercase ${activeDoc === 'invoice' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-400'}`}>
-              <Receipt className="w-4 h-4" /> HÓA ĐƠN
+            <button onClick={() => setActiveDoc('invoice')} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 rounded-xl font-black transition-all text-[10px] sm:text-xs uppercase ${activeDoc === 'invoice' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-slate-500 hover:bg-slate-100'}`}>
+              <Receipt className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> HÓA ĐƠN
             </button>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-end gap-2 sm:gap-3">
             <button 
               onClick={exportAsImage} 
               disabled={exporting}
-              className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition flex items-center gap-2 shadow-lg disabled:opacity-50"
+              className="flex-1 sm:flex-none justify-center px-4 sm:px-6 py-2 sm:py-2.5 bg-indigo-600 text-white rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition flex items-center gap-2 shadow-lg disabled:opacity-50"
             >
               <Download className="w-4 h-4" /> {exporting ? 'Đang xuất...' : 'XUẤT ẢNH HD'}
             </button>
-            <button onClick={handlePrint} className="p-2.5 bg-white text-slate-800 rounded-xl border border-slate-200 hover:bg-slate-50 transition shadow-sm">
-               <Printer className="w-5 h-5" />
+            <button onClick={handlePrint} className="p-2 sm:p-2.5 bg-white text-slate-800 rounded-xl border border-slate-200 hover:bg-slate-50 transition shadow-sm" title="In">
+               <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
-            <button onClick={onClose} className="p-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition shadow-sm">
-               <X className="w-5 h-5" />
+            <button onClick={onClose} className="p-2 sm:p-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition shadow-sm" title="Đóng">
+               <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-slate-100 p-12 scrollbar-thin">
-          <div ref={documentRef} className="max-w-[210mm] mx-auto shadow-2xl bg-white min-h-[297mm]">
+        <div className="flex-1 overflow-y-auto bg-slate-100 p-3 sm:p-6 md:p-12 scrollbar-thin">
+          <div 
+            ref={documentRef} 
+            className={`max-w-[210mm] mx-auto shadow-2xl bg-white ${activeDoc === 'production' ? 'min-h-0' : 'min-h-[297mm]'}`}
+          >
             {activeDoc === 'quote' && renderQuote()}
             {activeDoc === 'purchase' && renderPurchaseOrder()}
             {activeDoc === 'production' && renderProductionSheet()}
