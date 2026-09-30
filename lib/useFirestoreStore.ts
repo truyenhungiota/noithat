@@ -2,6 +2,7 @@ import { useState, useEffect, Dispatch, SetStateAction } from 'react';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, query } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { db, auth } from './firebase';
+import { sanitizeAndCompressPayload } from './imageUtils';
 import { UserAccount, Order, Customer, Supplier, ShippingUnit, Product, Category, CompanySettings } from '../types';
 
 export enum OperationType {
@@ -157,11 +158,13 @@ export const firestoreMutations = {
       };
       
       const cleanItem = removeUndefined(item);
+      // Auto-compress any base64 images to prevent exceeding Firestore's 1MB document limit
+      const payloadReady = await sanitizeAndCompressPayload(cleanItem);
       const now = new Date().toISOString();
       const itemToSave = { 
-        ...cleanItem, 
+        ...payloadReady, 
         id,
-        createdAt: cleanItem.createdAt || now,
+        createdAt: payloadReady.createdAt || now,
         updatedAt: now
       };
       await setDoc(doc(db, collectionName, id), itemToSave);

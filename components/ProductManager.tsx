@@ -4,6 +4,7 @@ import { Product, UserAccount, Category, UserRole } from '../types';
 import { Package, Search, Plus, Edit2, X, ChevronLeft, ChevronRight, Image as ImageIcon, Tag, LayoutGrid, User, FolderPlus, Trash2, Archive, CheckCircle, XCircle, ScanBarcode, Printer, Download } from 'lucide-react';
 import { Pagination } from './Pagination';
 import { compareNewestFirst } from '../lib/sortUtils';
+import { compressImage } from '../lib/imageUtils';
 
 interface ProductManagerProps {
   products: Product[];
@@ -446,14 +447,15 @@ const ProductManager: React.FC<ProductManagerProps> = ({
                       id="product-image-upload"
                       className="hidden" 
                       accept="image/*"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setEditingProduct({...editingProduct, imageUrl: reader.result as string});
-                          };
-                          reader.readAsDataURL(file);
+                          try {
+                            const compressed = await compressImage(file, 1280, 1280, 0.82);
+                            setEditingProduct({...editingProduct, imageUrl: compressed});
+                          } catch (err) {
+                            console.error('Lỗi nén ảnh sản phẩm:', err);
+                          }
                         }
                       }}
                     />

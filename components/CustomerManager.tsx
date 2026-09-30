@@ -11,7 +11,7 @@ interface CustomerManagerProps {
   users: UserAccount[];
   onAddCustomer: (c: Customer) => void;
   onUpdateCustomer: (c: Customer) => void;
-  onDeleteCustomer: (id: string) => void; // Prop kept for interface compatibility but functionality disabled/hidden
+  onDeleteCustomer: (id: string) => void;
   onViewOrder: (order: Order) => void;
   onEditOrder: (order: Order) => void;
   onDeleteOrder: (id: string) => void;
@@ -29,12 +29,29 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Partial<Customer> | null>(null);
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   // Phân trang
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [orderCurrentPage, setOrderCurrentPage] = useState(1);
   const ordersPerPage = 8;
+
+  const normalizePhone = (p?: string) => (p || '').replace(/[\s\.\-\(\)]/g, '');
+
+  const checkDuplicatePhone = (phone: string, currentCustomerId?: string) => {
+    const norm = normalizePhone(phone);
+    if (!norm) return null;
+    const duplicate = customers.find(c => {
+      if (currentCustomerId && c.id === currentCustomerId) return false;
+      return normalizePhone(c.phone) === norm;
+    });
+    if (duplicate) {
+      return `Số điện thoại ${phone} đã được sử dụng bởi khách hàng "${duplicate.name}". Không thể lưu trùng số điện thoại!`;
+    }
+    return null;
+  };
 
   const getUserName = (id: string) => {
     const user = users.find(u => u.id === id);
@@ -132,16 +149,27 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    const phone = editingCustomer?.phone || '';
+    const dupError = checkDuplicatePhone(phone, editingCustomer?.id);
+    if (dupError) {
+      setPhoneError(dupError);
+      return;
+    }
+
     if (editingCustomer?.id) {
       onUpdateCustomer({
         ...editingCustomer,
+        phone: phone.trim(),
+        name: editingCustomer.name?.trim() || '',
         updatedAt: new Date().toISOString()
       } as Customer);
     } else {
       const newCust = { 
         ...editingCustomer, 
         id: `CUST${Date.now()}${Math.floor(Math.random() * 1000)}`, 
-        status: 'active',
+        name: editingCustomer?.name?.trim() || '',
+        phone: phone.trim(),
+        status: editingCustomer?.status || 'active',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       } as Customer;
@@ -149,6 +177,7 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
     }
     setIsModalOpen(false);
     setEditingCustomer(null);
+    setPhoneError(null);
   };
 
   const getStatusBadgeClass = (status: OrderStatus) => {
@@ -187,7 +216,7 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
             onChange={e => setOrderSearchTerm(e.target.value)} 
           />
         </div>
-        <button onClick={() => { setEditingCustomer({}); setIsModalOpen(true); }} className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-xl hover:bg-slate-800 transition flex items-center gap-2"><UserCheck className="w-5 h-5" /> THÊM KHÁCH HÀNG</button>
+        <button onClick={() => { setEditingCustomer({ status: 'active' }); setPhoneError(null); setIsModalOpen(true); }} className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-xl hover:bg-slate-800 transition flex items-center gap-2"><UserCheck className="w-5 h-5" /> THÊM KHÁCH HÀNG</button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -232,9 +261,30 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
                         </div>
                       </div>
                     </div>
-                    {/* Add Edit button to list item, REMOVED DELETE BUTTON */}
-                    <div className="flex gap-1 ml-4 group-hover:opacity-100 opacity-60 transition-opacity">
-                      <button onClick={(e) => { e.stopPropagation(); setEditingCustomer(customer); setIsModalOpen(true); }} className={`p-2 rounded-xl transition shadow-sm ${isSelected ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-slate-50 text-slate-400 hover:text-blue-600'}`}><Edit2 className="w-4 h-4" /></button>
+                    {/* Sửa và Xóa khách hàng */}
+                    <div className="flex gap-1.5 ml-4 group-hover:opacity-100 opacity-60 transition-opacity shrink-0">
+                      <button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setEditingCustomer(customer); 
+                          setPhoneError(null); 
+                          setIsModalOpen(true); 
+                        }} 
+                        className={`p-2 rounded-xl transition shadow-sm ${isSelected ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-slate-50 text-slate-400 hover:text-blue-600'}`}
+                        title="Sửa thông tin khách hàng"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setCustomerToDelete(customer); 
+                        }} 
+                        className={`p-2 rounded-xl transition shadow-sm ${isSelected ? 'bg-white/20 text-white hover:bg-red-500 hover:text-white' : 'bg-slate-50 text-slate-400 hover:text-red-600'}`}
+                        title="Xóa khách hàng"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -316,6 +366,24 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
                           <option value="active">Đang hoạt động</option>
                           <option value="inactive">Cần chú ý</option>
                         </select>
+                      </div>
+                      <div className="flex items-center gap-2 mt-3.5">
+                        <button 
+                          onClick={() => { 
+                            setEditingCustomer(activeCustomer); 
+                            setPhoneError(null); 
+                            setIsModalOpen(true); 
+                          }}
+                          className="px-3.5 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 transition shadow-xs"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" /> Sửa thông tin
+                        </button>
+                        <button 
+                          onClick={() => setCustomerToDelete(activeCustomer)}
+                          className="px-3.5 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 transition shadow-xs"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Xóa khách hàng
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -413,8 +481,29 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Số điện thoại</label>
-                  <input maxLength={15} required placeholder="090... (Max 15 số)" className="w-full px-6 py-4 bg-slate-50 border rounded-2xl font-black outline-none focus:ring-2 focus:ring-blue-500" value={editingCustomer?.phone || ''} onChange={e => setEditingCustomer({...editingCustomer, phone: e.target.value})} />
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Số điện thoại (* Không trùng)</label>
+                    {phoneError && <span className="text-[9px] font-black text-rose-500 uppercase">Trùng SĐT</span>}
+                  </div>
+                  <input 
+                    maxLength={15} 
+                    required 
+                    placeholder="090... (Max 15 số)" 
+                    className={`w-full px-6 py-4 bg-slate-50 border rounded-2xl font-black outline-none transition ${phoneError ? 'border-rose-400 bg-rose-50/20 text-rose-700 focus:ring-2 focus:ring-rose-400' : 'focus:ring-2 focus:ring-blue-500'}`} 
+                    value={editingCustomer?.phone || ''} 
+                    onChange={e => {
+                      const val = e.target.value;
+                      setEditingCustomer({...editingCustomer, phone: val});
+                      const dup = checkDuplicatePhone(val, editingCustomer?.id);
+                      setPhoneError(dup);
+                    }} 
+                  />
+                  {phoneError && (
+                    <p className="text-[11px] font-bold text-rose-600 flex items-start gap-1.5 mt-1 px-1 leading-tight">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-rose-500" />
+                      <span>{phoneError}</span>
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email</label>
@@ -437,10 +526,80 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Thông tin mở rộng</label>
                 <textarea maxLength={500} placeholder="Ghi chú thêm, thông tin chuyển khoản, người nhận thay..." rows={3} className="w-full px-6 py-4 bg-slate-50 border rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500 shadow-inner" value={editingCustomer?.extraInfo || ''} onChange={e => setEditingCustomer({...editingCustomer, extraInfo: e.target.value})} />
               </div>
-              <button type="submit" className="w-full py-5 bg-blue-600 text-white rounded-[2rem] font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-100 hover:bg-blue-700 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 mt-4">
+              <button 
+                type="submit" 
+                disabled={!!phoneError}
+                className="w-full py-5 bg-blue-600 text-white rounded-[2rem] font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-100 hover:bg-blue-700 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all flex items-center justify-center gap-3 mt-4"
+              >
                 <UserCheck className="w-6 h-6" /> LƯU THÔNG TIN KHÁCH HÀNG
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal xác nhận xóa khách hàng */}
+      {customerToDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[120] animate-in fade-in">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md p-6 md:p-8 relative animate-in zoom-in-95 space-y-6">
+            <button 
+              onClick={() => setCustomerToDelete(null)} 
+              className="absolute top-6 right-6 p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition"
+            >
+              <X className="w-5 h-5 text-slate-500" />
+            </button>
+
+            <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+              <Trash2 className="w-8 h-8" />
+            </div>
+
+            <div className="text-center space-y-2">
+              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Xóa khách hàng</h3>
+              <p className="text-sm font-bold text-slate-600 leading-relaxed">
+                Bạn có chắc chắn muốn xóa khách hàng <span className="text-rose-600 font-black">"{customerToDelete.name}"</span> khỏi danh bạ đối tác?
+              </p>
+              <div className="bg-slate-50 p-3 rounded-2xl border text-xs text-slate-600 font-bold space-y-1 text-left mt-3">
+                <p className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-blue-500 shrink-0" /> SĐT: <b className="text-slate-800">{customerToDelete.phone}</b></p>
+                {customerToDelete.address && (
+                  <p className="flex items-center gap-2 truncate"><MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" /> Địa chỉ: {customerToDelete.address}</p>
+                )}
+              </div>
+
+              {orders.filter(o => o.customerId === customerToDelete.id).length > 0 && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-left text-xs font-bold text-amber-800 space-y-1 mt-3">
+                  <p className="flex items-center gap-1.5 font-black text-amber-900">
+                    <AlertCircle className="w-4 h-4 shrink-0" /> Lưu ý liên kết đơn hàng:
+                  </p>
+                  <p className="text-[11px] leading-relaxed">
+                    Khách hàng này hiện có <b className="text-amber-950 font-black">{orders.filter(o => o.customerId === customerToDelete.id).length} đơn hàng</b>. Các đơn hàng cũ vẫn được bảo lưu chi tiết, nhưng khách hàng sẽ bị gỡ khỏi danh bạ khách hàng.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button 
+                type="button" 
+                onClick={() => setCustomerToDelete(null)}
+                className="flex-1 py-3.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-2xl font-black text-xs uppercase tracking-wider transition"
+              >
+                Hủy bỏ
+              </button>
+              <button 
+                type="button" 
+                onClick={() => {
+                  const idToDelete = customerToDelete.id;
+                  onDeleteCustomer(idToDelete);
+                  if (selectedCustomerId === idToDelete) {
+                    setSelectedCustomerId(null);
+                  }
+                  setCustomerToDelete(null);
+                }}
+                className="flex-1 py-3.5 bg-rose-600 text-white hover:bg-rose-700 rounded-2xl font-black text-xs uppercase tracking-wider transition shadow-lg shadow-rose-200"
+              >
+                Xác nhận xóa
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -318,16 +318,37 @@ const App: React.FC = () => {
         invoiceCode: order.invoiceCode || '',
         shippingCost: order.shippingCost || 0,
         factoryShippingCost: order.factoryShippingCost || 0,
-        items: order.items || [],
+        items: (order.items || []).map((it, idx) => ({
+          ...it,
+          id: it.id || `item_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
+          name: it.name || '',
+          category: it.category || '',
+          dimensions: it.dimensions || '',
+          quantity: it.quantity || 1,
+          salePrice: it.salePrice || 0,
+          purchasePrice: it.purchasePrice || 0,
+          unit: it.unit || 'Bộ',
+          imageUrl: it.imageUrl || '',
+          leatherImageUrl: it.leatherImageUrl || '',
+          color: it.color || '',
+          options: it.options || '',
+          productionNote: it.productionNote || ''
+        })),
         depositPaymentDate: order.depositPaymentDate || '',
         finalPaymentInvoiceDate: order.finalPaymentInvoiceDate || '',
         createdAt: order.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     };
 
-    const existingCustomer = customers.find(c => c.id === order.customerId);
+    const normCustomerPhone = (order.customerPhone || '').replace(/[\s\.\-\(\)]/g, '');
+    const existingCustomer = customers.find(c => 
+      c.id === order.customerId || 
+      (normCustomerPhone && (c.phone || '').replace(/[\s\.\-\(\)]/g, '') === normCustomerPhone)
+    );
     
-    if (!existingCustomer && order.customerName) {
+    if (existingCustomer) {
+      orderWithCreator.customerId = existingCustomer.id;
+    } else if (order.customerName) {
       const newCustomerId = order.customerId || generateId('CUST');
       const newCustomer: Customer = {
         id: newCustomerId,
@@ -374,8 +395,10 @@ const App: React.FC = () => {
         setIsFormOpen(false);
         setEditingOrder(undefined);
         showNotification('Đã lưu đơn hàng thành công!');
-    } catch (e) {
-        showNotification('Lỗi khi lưu đơn hàng, vui lòng thử lại', 'error');
+    } catch (e: any) {
+        console.error('Lỗi khi lưu đơn hàng:', e);
+        const errMsg = e?.message || '';
+        showNotification(errMsg ? `Lỗi: ${errMsg.slice(0, 100)}` : 'Lỗi khi lưu đơn hàng, vui lòng thử lại', 'error');
     }
   };
 
@@ -424,6 +447,16 @@ const App: React.FC = () => {
     }
     await firestoreMutations.deleteItem('suppliers', id);
     showNotification('Đã xóa nhà xưởng', 'success');
+  };
+
+  const deleteCustomer = async (id: string) => {
+    try {
+      await firestoreMutations.deleteItem('customers', id);
+      showNotification('Đã xóa thông tin khách hàng thành công', 'success');
+    } catch (err) {
+      console.error('Lỗi khi xóa khách hàng:', err);
+      showNotification('Lỗi khi xóa khách hàng. Vui lòng thử lại.', 'error');
+    }
   };
 
   const getStatusBadgeClass = (status: OrderStatus) => {
@@ -739,6 +772,14 @@ const App: React.FC = () => {
           orders={userOrders} 
           users={users} 
           onAddCustomer={async (c) => { 
+            const normPhone = (c.phone || '').replace(/[\s\.\-\(\)]/g, '');
+            if (normPhone) {
+              const dup = customers.find(existing => (existing.phone || '').replace(/[\s\.\-\(\)]/g, '') === normPhone);
+              if (dup) {
+                showNotification(`Số điện thoại "${c.phone}" đã tồn tại cho khách hàng "${dup.name}". Không được lưu trùng số điện thoại!`, 'error');
+                return;
+              }
+            }
             await firestoreMutations.saveItem('customers', { 
               ...c, 
               name: c.name || '',
@@ -748,9 +789,17 @@ const App: React.FC = () => {
               createdAt: c.createdAt || new Date().toISOString(),
               updatedAt: new Date().toISOString()
             }); 
-            showNotification('Đã thêm khách hàng mới'); 
+            showNotification('Đã thêm khách hàng mới', 'success'); 
           }} 
           onUpdateCustomer={async (updatedCust: Customer) => {
+            const normPhone = (updatedCust.phone || '').replace(/[\s\.\-\(\)]/g, '');
+            if (normPhone) {
+              const dup = customers.find(existing => existing.id !== updatedCust.id && (existing.phone || '').replace(/[\s\.\-\(\)]/g, '') === normPhone);
+              if (dup) {
+                showNotification(`Số điện thoại "${updatedCust.phone}" đã được sử dụng bởi khách hàng "${dup.name}". Không được lưu trùng số điện thoại!`, 'error');
+                return;
+              }
+            }
             await firestoreMutations.saveItem('customers', {
               ...updatedCust,
               name: updatedCust.name || '',
@@ -759,9 +808,9 @@ const App: React.FC = () => {
               createdBy: updatedCust.createdBy || currentUser!.id,
               updatedAt: new Date().toISOString()
             });
-            showNotification('Đã cập nhật thông tin khách hàng');
+            showNotification('Đã cập nhật thông tin khách hàng', 'success');
           }}
-          onDeleteCustomer={() => showNotification("Không thể xóa khách hàng.", 'error')} 
+          onDeleteCustomer={deleteCustomer} 
           onViewOrder={(o) => setPreviewOrderId(o.id)} 
           onEditOrder={(o) => {setEditingOrder(o); setIsFormOpen(true);}} 
           onDeleteOrder={deleteOrder} 

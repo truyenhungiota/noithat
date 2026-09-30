@@ -69,198 +69,161 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
     }
     window.scrollTo(0, 0);
 
-    // Tạo một container staging riêng biệt cố định chiều rộng chuẩn Desktop/A4 (880px)
-    // Đảm bảo dù người dùng dùng điện thoại nhỏ hay máy tính, ảnh xuất ra luôn đạt chuẩn full HD, không bị ép co, không rớt cột, không che khuất chữ
+    // Tạo một container staging riêng biệt cố định chiều rộng chuẩn Desktop/A4 (900px)
+    // Đảm bảo dù người dùng dùng điện thoại hay máy tính, ảnh xuất ra luôn đạt chuẩn siêu nét HD (300 DPI), không bị ép co, không rớt cột
     const stagingContainer = document.createElement('div');
     stagingContainer.setAttribute('data-export-staging', 'true');
     stagingContainer.style.position = 'fixed';
     stagingContainer.style.left = '0';
     stagingContainer.style.top = '0';
-    stagingContainer.style.width = '880px';
+    stagingContainer.style.width = '900px';
     stagingContainer.style.backgroundColor = '#ffffff';
     stagingContainer.style.zIndex = '-99999';
     stagingContainer.style.opacity = '1';
     stagingContainer.style.pointerEvents = 'none';
     stagingContainer.style.margin = '0';
-    // Đệm an toàn 16px màu trắng xung quanh giúp toàn bộ 4 góc viền, bo góc, tiêu đề và chữ ký hiển thị trọn vẹn 100% không bị cắt mép
+    // Đệm an toàn 16px màu trắng xung quanh giúp toàn bộ 4 góc viền, bo góc, tiêu đề và chữ ký hiển thị trọn vẹn 100%
     stagingContainer.style.padding = '16px';
     stagingContainer.style.boxSizing = 'border-box';
     stagingContainer.style.overflow = 'visible';
+    stagingContainer.style.imageRendering = '-webkit-optimize-contrast';
     document.body.appendChild(stagingContainer);
 
     try {
       const exportElement = documentRef.current;
 
-      // Đảm bảo tất cả hình ảnh trong chứng từ đã load xong
+      // Đảm bảo tất cả hình ảnh trong chứng từ đã load xong và giải mã đầy đủ ở độ phân giải gốc
       const sourceImages = Array.from(exportElement.querySelectorAll('img'));
       await Promise.all(
-        sourceImages.map(img => {
-          if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-          return new Promise(resolve => {
-            img.onload = resolve;
+        sourceImages.map(async img => {
+          img.crossOrigin = 'anonymous';
+          if (img.complete && img.naturalWidth > 0) {
+            try { if ('decode' in img) await img.decode(); } catch (e) {}
+            return;
+          }
+          await new Promise(resolve => {
+            img.onload = async () => {
+              try { if ('decode' in img) await img.decode(); } catch (e) {}
+              resolve(null);
+            };
             img.onerror = resolve;
-            setTimeout(resolve, 2000);
+            setTimeout(resolve, 3000);
           });
         })
       );
 
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 120));
 
-      const productionCards = exportElement.querySelectorAll('.production-card');
+      const clone = exportElement.cloneNode(true) as HTMLElement;
 
-      if (activeDoc === 'production' && productionCards.length > 0) {
-        // Với Yêu cầu sản xuất: xuất từng thẻ sản phẩm với viền và 4 góc bo tròn sắc nét, đầy đủ ảnh kiểu dáng, ảnh da và thông số
-        for (let i = 0; i < productionCards.length; i++) {
-          const card = productionCards[i] as HTMLElement;
-          const cardClone = card.cloneNode(true) as HTMLElement;
+      clone.style.width = '100%';
+      clone.style.minWidth = '100%';
+      clone.style.maxWidth = 'none';
+      clone.style.minHeight = 'auto';
+      clone.style.boxShadow = 'none';
+      clone.style.margin = '0';
+      clone.style.borderRadius = '0';
+      clone.style.overflow = 'visible';
+      clone.style.backgroundColor = '#ffffff';
 
-          cardClone.style.width = '100%';
-          cardClone.style.maxWidth = 'none';
-          cardClone.style.margin = '0';
-          cardClone.style.boxShadow = 'none'; // Gỡ bỏ bóng đổ mờ ngoài để không bị vệt cắt cạnh
-          cardClone.style.overflow = 'visible'; // Cho phép viền 10px đen và 4 góc hiển thị trọn vẹn
-          cardClone.style.borderRadius = '12px';
+      // Ẩn tất cả các nút no-print trong ảnh xuất ra (như nút Tải ảnh HD nhỏ)
+      clone.querySelectorAll('.no-print').forEach(el => {
+        (el as HTMLElement).style.display = 'none';
+      });
 
-          // Mở rộng tất cả container con có overflow giới hạn
-          cardClone.querySelectorAll('.overflow-x-auto, .overflow-y-auto, .overflow-hidden').forEach(el => {
-            (el as HTMLElement).style.overflow = 'visible';
-            (el as HTMLElement).style.maxWidth = 'none';
-          });
+      // Gỡ bỏ giới hạn cuộn và cắt cạnh ở tất cả bảng biểu và khối dữ liệu
+      clone.querySelectorAll('.overflow-x-auto, .overflow-y-auto, .overflow-hidden').forEach(el => {
+        (el as HTMLElement).style.overflow = 'visible';
+        (el as HTMLElement).style.maxWidth = 'none';
+      });
 
-          // Thiết lập crossOrigin cho hình ảnh
-          const cloneImages = Array.from(cardClone.querySelectorAll('img'));
-          cloneImages.forEach(img => {
-            img.crossOrigin = 'anonymous';
-          });
+      // Bỏ line-clamp để không bao giờ bị cắt ngắn địa chỉ hay ghi chú
+      clone.querySelectorAll('[class*="line-clamp"]').forEach(el => {
+        el.className = el.className.replace(/line-clamp-\d+/g, '');
+      });
 
-          stagingContainer.innerHTML = '';
-          stagingContainer.appendChild(cardClone);
+      // Đảm bảo tất cả bảng chiếm trọn chiều rộng và các cột hiển thị đầy đủ
+      clone.querySelectorAll('table').forEach(table => {
+        table.style.width = '100%';
+        table.style.minWidth = '100%';
+      });
 
-          await Promise.all(
-            cloneImages.map(img => {
-              if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-              return new Promise(resolve => {
-                img.onload = resolve;
-                img.onerror = resolve;
-                setTimeout(resolve, 1500);
-              });
-            })
-          );
-
-          await new Promise(r => setTimeout(r, 80));
-
-          const canvasWidth = stagingContainer.offsetWidth;
-          const canvasHeight = stagingContainer.offsetHeight;
-
-          const canvas = await html2canvas(stagingContainer, {
-            scale: 2,
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: '#ffffff',
-            scrollX: 0,
-            scrollY: 0,
-            x: 0,
-            y: 0,
-            width: canvasWidth,
-            height: canvasHeight,
-            windowWidth: 1200,
-            windowHeight: canvasHeight + 200,
-            logging: false
-          });
-
-          const link = document.createElement('a');
-          const itemSuffix = productionCards.length > 1 ? `_sp_${i + 1}` : '';
-          link.download = `yeu_cau_san_xuat_${order.id}${itemSuffix}.png`;
-          link.href = canvas.toDataURL('image/png');
-          link.click();
-
-          if (i < productionCards.length - 1) {
-            await new Promise(r => setTimeout(r, 400));
-          }
-        }
-      } else {
-        // Đối với Báo giá, Đơn nhập hàng, Phiếu xuất kho, Hóa đơn
-        const clone = exportElement.cloneNode(true) as HTMLElement;
-
-        clone.style.width = '100%';
-        clone.style.minWidth = '100%';
-        clone.style.maxWidth = 'none';
-        clone.style.minHeight = 'auto'; // Vừa vặn chiều dài thực tế, không để lại mảng trắng thừa hoặc bị cắt cụt đuôi
-        clone.style.boxShadow = 'none';
-        clone.style.margin = '0';
-        clone.style.borderRadius = '0';
-        clone.style.overflow = 'visible';
-
-        // Gỡ bỏ giới hạn cuộn và cắt cạnh ở tất cả bảng biểu và khối dữ liệu
-        clone.querySelectorAll('.overflow-x-auto, .overflow-y-auto, .overflow-hidden').forEach(el => {
-          (el as HTMLElement).style.overflow = 'visible';
-          (el as HTMLElement).style.maxWidth = 'none';
+      // Đối với Yêu cầu sản xuất: đảm bảo các thẻ sản phẩm liền mạch trong cùng 1 ảnh
+      if (activeDoc === 'production') {
+        clone.querySelectorAll('.production-card').forEach(card => {
+          const cardEl = card as HTMLElement;
+          cardEl.style.width = '100%';
+          cardEl.style.maxWidth = 'none';
+          cardEl.style.boxShadow = 'none';
+          cardEl.style.overflow = 'visible';
+          cardEl.style.marginBottom = '24px';
+          cardEl.style.borderRadius = '12px';
         });
-
-        // Bỏ line-clamp để không bao giờ bị cắt ngắn địa chỉ hay ghi chú
-        clone.querySelectorAll('[class*="line-clamp"]').forEach(el => {
-          el.className = el.className.replace(/line-clamp-\d+/g, '');
-        });
-
-        // Đảm bảo tất cả bảng chiếm trọn chiều rộng và các cột hiển thị đầy đủ
-        clone.querySelectorAll('table').forEach(table => {
-          table.style.width = '100%';
-          table.style.minWidth = '100%';
-        });
-
-        const cloneImages = Array.from(clone.querySelectorAll('img'));
-        cloneImages.forEach(img => {
-          img.crossOrigin = 'anonymous';
-        });
-
-        stagingContainer.innerHTML = '';
-        stagingContainer.appendChild(clone);
-
-        await Promise.all(
-          cloneImages.map(img => {
-            if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-            return new Promise(resolve => {
-              img.onload = resolve;
-              img.onerror = resolve;
-              setTimeout(resolve, 1500);
-            });
-          })
-        );
-
-        await new Promise(r => setTimeout(r, 80));
-
-        const canvasWidth = stagingContainer.offsetWidth;
-        const canvasHeight = stagingContainer.offsetHeight;
-
-        const canvas = await html2canvas(stagingContainer, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#ffffff',
-          scrollX: 0,
-          scrollY: 0,
-          x: 0,
-          y: 0,
-          width: canvasWidth,
-          height: canvasHeight,
-          windowWidth: 1200,
-          windowHeight: canvasHeight + 200,
-          logging: false
-        });
-
-        const docNameMap: Record<DocType, string> = {
-          quote: 'bao_gia',
-          purchase: 'don_nhap',
-          production: 'yeu_cau_san_xuat',
-          dispatch: 'phieu_xuat_kho',
-          invoice: 'hoa_don'
-        };
-
-        const link = document.createElement('a');
-        link.download = `${docNameMap[activeDoc] || activeDoc}_${order.id}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
       }
+
+      const cloneImages = Array.from(clone.querySelectorAll('img'));
+      cloneImages.forEach(img => {
+        img.crossOrigin = 'anonymous';
+        img.style.imageRendering = 'auto';
+      });
+
+      stagingContainer.innerHTML = '';
+      stagingContainer.appendChild(clone);
+
+      await Promise.all(
+        cloneImages.map(async img => {
+          if (img.complete && img.naturalWidth > 0) {
+            try { if ('decode' in img) await img.decode(); } catch (e) {}
+            return;
+          }
+          await new Promise(resolve => {
+            img.onload = async () => {
+              try { if ('decode' in img) await img.decode(); } catch (e) {}
+              resolve(null);
+            };
+            img.onerror = resolve;
+            setTimeout(resolve, 3000);
+          });
+        })
+      );
+
+      await new Promise(r => setTimeout(r, 120));
+
+      const canvasWidth = stagingContainer.offsetWidth;
+      const canvasHeight = stagingContainer.offsetHeight;
+
+      // Tự động điều chỉnh scale tối ưu theo độ cao tổng thể để ảnh luôn siêu nét HD mà không vượt quá giới hạn canvas trình duyệt
+      const exportScale = canvasHeight > 3500 ? 2 : (canvasHeight > 2200 ? 2.5 : 3);
+
+      const canvas = await html2canvas(stagingContainer, {
+        scale: exportScale,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        scrollX: 0,
+        scrollY: 0,
+        x: 0,
+        y: 0,
+        width: canvasWidth,
+        height: canvasHeight,
+        windowWidth: 1200,
+        windowHeight: canvasHeight + 200,
+        imageTimeout: 15000,
+        logging: false
+      });
+
+      const docNameMap: Record<DocType, string> = {
+        quote: 'bao_gia',
+        purchase: 'don_nhap',
+        production: 'yeu_cau_san_xuat',
+        dispatch: 'phieu_xuat_kho',
+        invoice: 'hoa_don'
+      };
+
+      const link = document.createElement('a');
+      link.download = `${docNameMap[activeDoc] || activeDoc}_${order.id}_HD.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
     } catch (err) {
       console.error('Export failed:', err);
       alert('Không thể xuất ảnh HD. Vui lòng thử lại.');
@@ -291,8 +254,15 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
                 <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-900 font-black text-xl tracking-tighter shrink-0">HI</div>
               )}
               <div>
-                <h2 className="text-xl md:text-2xl font-black uppercase tracking-widest">YÊU CẦU SẢN XUẤT - {order.id}</h2>
-                <p className="text-xs font-bold text-amber-400 uppercase tracking-widest">XƯỞNG SẢN XUẤT: {order.supplierName}</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-xl md:text-2xl font-black uppercase tracking-widest">YÊU CẦU SẢN XUẤT - {order.id}</h2>
+                  {order.items.length > 1 && (
+                    <span className="text-[11px] font-black text-amber-300 bg-amber-950/80 px-2.5 py-0.5 rounded-full border border-amber-500/50">
+                      SẢN PHẨM #{idx + 1}/{order.items.length}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs font-bold text-amber-400 uppercase tracking-widest mt-0.5">XƯỞNG SẢN XUẤT: {order.supplierName}</p>
               </div>
             </div>
             <div className="text-left sm:text-right flex items-center gap-4 shrink-0">
@@ -310,14 +280,25 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
                  <div className="w-full flex flex-col items-center justify-center">
                    <div className="w-full flex items-center justify-between mb-2 px-1">
                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-                       <ImageIcon className="w-3.5 h-3.5 text-blue-600" /> Ảnh kiểu dáng sản phẩm
+                       <ImageIcon className="w-3.5 h-3.5 text-blue-600" /> Ảnh kiểu dáng sản phẩm (HD)
                      </span>
+                     <a 
+                       href={item.imageUrl} 
+                       download={`${item.name}_HD.jpg`} 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       className="no-print text-[10px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-white px-2 py-0.5 rounded shadow-xs border border-blue-100 hover:border-blue-300 transition"
+                       title="Tải ảnh kiểu dáng chuẩn gốc HD"
+                     >
+                       <Download className="w-3 h-3" /> Tải ảnh HD
+                     </a>
                    </div>
                    <img 
                      src={item.imageUrl} 
-                     className="max-w-full max-h-[340px] md:max-h-[380px] w-auto h-auto object-contain rounded-xl shadow-md border border-slate-200/80 bg-white" 
+                     className="max-w-full max-h-[380px] md:max-h-[440px] w-auto h-auto object-contain rounded-xl shadow-md border border-slate-200/80 bg-white" 
                      alt={item.name} 
                      crossOrigin="anonymous"
+                     loading="eager"
                    />
                  </div>
                ) : (
@@ -332,19 +313,32 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
                  <div className="w-full flex flex-col items-center justify-center pt-4 border-t-2 border-dashed border-slate-300">
                    <div className="w-full flex items-center justify-between mb-2 px-1">
                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 flex items-center gap-1.5 bg-amber-100/80 px-2 py-0.5 rounded">
-                       <Palette className="w-3.5 h-3.5 text-amber-600" /> Mẫu màu da / vật liệu bọc
+                       <Palette className="w-3.5 h-3.5 text-amber-600" /> Mẫu màu da / vật liệu bọc (HD)
                      </span>
-                     {item.color && (
-                       <span className="text-[10px] font-bold text-slate-600">
-                         Mã màu: <b className="text-slate-900">{item.color}</b>
-                       </span>
-                     )}
+                     <div className="flex items-center gap-2">
+                       {item.color && (
+                         <span className="text-[10px] font-bold text-slate-600">
+                           Mã màu: <b className="text-slate-900">{item.color}</b>
+                         </span>
+                       )}
+                       <a 
+                         href={item.leatherImageUrl} 
+                         download={`Mau_da_${item.color || item.name}_HD.jpg`} 
+                         target="_blank" 
+                         rel="noopener noreferrer"
+                         className="no-print text-[10px] font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 bg-white px-2 py-0.5 rounded shadow-xs border border-amber-200 hover:border-amber-300 transition"
+                         title="Tải ảnh mẫu da chuẩn gốc HD"
+                       >
+                         <Download className="w-3 h-3" /> Tải mẫu da HD
+                       </a>
+                     </div>
                    </div>
                    <img 
                      src={item.leatherImageUrl} 
-                     className="max-w-full max-h-[260px] md:max-h-[300px] w-auto h-auto object-contain rounded-xl shadow-md border-2 border-amber-300/80 bg-white" 
+                     className="max-w-full max-h-[300px] md:max-h-[360px] w-auto h-auto object-contain rounded-xl shadow-md border-2 border-amber-300/80 bg-white" 
                      alt={`Màu da - ${item.name}`} 
                      crossOrigin="anonymous"
+                     loading="eager"
                    />
                  </div>
                )}
@@ -468,7 +462,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
         <table className="w-full border-collapse min-w-[500px]">
           <thead>
             <tr className="bg-slate-900 text-white text-xs font-black uppercase tracking-wider">
-              <th className="p-3.5 text-center w-20">ẢNH</th>
+              <th className="p-3.5 text-center w-24">ẢNH (HD)</th>
               <th className="p-3.5 text-left">HẠNG MỤC CHI TIẾT</th>
               <th className="p-3.5 text-center w-16">SL</th>
               <th className="p-3.5 text-right w-32">ĐƠN GIÁ</th>
@@ -479,11 +473,17 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
             {order.items.map((item, idx) => (
               <tr key={item.id} className="text-sm hover:bg-slate-50">
                 <td className="p-2 text-center">
-                  <div className="w-16 h-16 mx-auto bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
+                  <div className="w-20 h-20 mx-auto bg-white rounded-xl overflow-hidden border border-slate-200 shadow-xs flex items-center justify-center p-1">
                     {item.imageUrl ? (
-                      <img src={item.imageUrl} className="w-full h-full object-contain" alt={item.name} />
+                      <img 
+                        src={item.imageUrl} 
+                        className="w-full h-full object-contain" 
+                        alt={item.name}
+                        crossOrigin="anonymous"
+                        loading="eager"
+                      />
                     ) : (
-                      <ImageIcon className="w-full h-full p-3.5 text-slate-300" />
+                      <ImageIcon className="w-8 h-8 text-slate-300" />
                     )}
                   </div>
                 </td>
@@ -857,7 +857,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
             <thead>
               <tr className="bg-teal-800 text-white text-xs font-black uppercase tracking-wider">
                 <th className="p-3 text-center w-10">STT</th>
-                <th className="p-3 text-center w-14">ẢNH</th>
+                <th className="p-3 text-center w-20">ẢNH (HD)</th>
                 <th className="p-3 text-left">TÊN HÀNG HÓA & QUY CÁCH KỸ THUẬT</th>
                 <th className="py-3 px-1.5 text-center w-12">ĐVT</th>
                 <th className="py-3 px-1.5 text-center w-12">SL ĐẶT</th>
@@ -870,9 +870,15 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
                 <tr key={item.id} className="text-sm hover:bg-slate-50">
                   <td className="p-3 text-center font-bold text-slate-400 text-xs tabular-nums">{idx + 1}</td>
                   <td className="p-2 text-center">
-                    <div className="w-12 h-12 mx-auto bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto bg-white rounded-xl overflow-hidden border border-teal-200 shadow-xs flex items-center justify-center p-1">
                       {item.imageUrl ? (
-                        <img src={item.imageUrl} className="w-full h-full object-cover" alt={item.name} crossOrigin="anonymous" />
+                        <img 
+                          src={item.imageUrl} 
+                          className="w-full h-full object-contain" 
+                          alt={item.name} 
+                          crossOrigin="anonymous" 
+                          loading="eager"
+                        />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-slate-300 font-bold text-[8px] uppercase">No img</div>
                       )}
@@ -1051,7 +1057,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
         <table className="w-full border-collapse min-w-[500px]">
           <thead>
             <tr className="bg-slate-900 text-white text-xs font-black uppercase tracking-wider">
-              <th className="p-3.5 text-center w-20">ẢNH</th>
+              <th className="p-3.5 text-center w-24">ẢNH (HD)</th>
               <th className="p-3.5 text-left">HÀNG HÓA, DỊCH VỤ CHI TIẾT</th>
               <th className="p-3.5 text-center w-16">SL</th>
               <th className="p-3.5 text-right w-32">ĐƠN GIÁ</th>
@@ -1062,11 +1068,17 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
             {order.items.map((item, idx) => (
               <tr key={item.id} className="text-sm hover:bg-slate-50">
                 <td className="p-2 text-center">
-                   <div className="w-16 h-16 mx-auto rounded-lg border border-slate-200 overflow-hidden bg-slate-100 flex items-center justify-center">
+                   <div className="w-20 h-20 mx-auto rounded-xl border border-slate-200 overflow-hidden bg-white shadow-xs flex items-center justify-center p-1">
                      {item.imageUrl ? (
-                       <img src={item.imageUrl} className="w-full h-full object-contain" alt={item.name} />
+                       <img 
+                         src={item.imageUrl} 
+                         className="w-full h-full object-contain" 
+                         alt={item.name} 
+                         crossOrigin="anonymous"
+                         loading="eager"
+                       />
                      ) : (
-                       <ImageIcon className="w-full h-full p-3.5 text-slate-300" />
+                       <ImageIcon className="w-8 h-8 text-slate-300" />
                      )}
                    </div>
                 </td>
@@ -1201,8 +1213,9 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ order, company, onClo
               onClick={exportAsImage} 
               disabled={exporting}
               className="flex-1 sm:flex-none justify-center px-4 sm:px-6 py-2 sm:py-2.5 bg-indigo-600 text-white rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition flex items-center gap-2 shadow-lg disabled:opacity-50"
+              title="Xuất ảnh chất lượng cao chuẩn HD 300 DPI"
             >
-              <Download className="w-4 h-4" /> {exporting ? 'Đang xuất...' : 'XUẤT ẢNH HD'}
+              <Download className="w-4 h-4" /> {exporting ? 'Đang xuất HD...' : 'XUẤT ẢNH HD (300 DPI)'}
             </button>
             <button onClick={handlePrint} className="p-2 sm:p-2.5 bg-white text-slate-800 rounded-xl border border-slate-200 hover:bg-slate-50 transition shadow-sm" title="In">
                <Printer className="w-4 h-4 sm:w-5 sm:h-5" />

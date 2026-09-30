@@ -2,6 +2,7 @@
 import React, { useRef } from 'react';
 import { CompanySettings } from '../types';
 import { Save, Building2, User, FileText, MapPin, Mail, CreditCard, Phone, UploadCloud, Trash2, Image as ImageIcon } from 'lucide-react';
+import { compressImage } from '../lib/imageUtils';
 
 interface SettingsProps {
   settings: CompanySettings;
@@ -17,18 +18,15 @@ const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
     onSave(formData);
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert("Kích thước ảnh quá lớn. Vui lòng chọn ảnh < 2MB");
-        return;
+      try {
+        const compressed = await compressImage(file, 400, 400, 0.8);
+        setFormData({ ...formData, logoUrl: compressed });
+      } catch (err) {
+        console.error('Lỗi nén logo:', err);
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, logoUrl: reader.result as string });
-      };
-      reader.readAsDataURL(file);
     }
   };
 
