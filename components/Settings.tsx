@@ -3,6 +3,7 @@ import React, { useRef } from 'react';
 import { CompanySettings } from '../types';
 import { Save, Building2, User, FileText, MapPin, Mail, CreditCard, Phone, UploadCloud, Trash2, Image as ImageIcon } from 'lucide-react';
 import { compressImage } from '../lib/imageUtils';
+import { DEFAULT_HUNG_IOTA_LOGO } from '../lib/logo';
 
 interface SettingsProps {
   settings: CompanySettings;
@@ -82,11 +83,11 @@ const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
                    </button>
                    <button 
                       type="button" 
-                      onClick={() => setFormData({ ...formData, logoUrl: 'https://hungiota.com/wp-content/uploads/2019/08/logo-Hung-iota-57.png' })}
-                      className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-black uppercase flex items-center gap-1.5 hover:bg-slate-200 transition"
-                      title="Sử dụng logo gốc chính thức của Nội Thất Hùng Iota"
+                      onClick={() => setFormData({ ...formData, logoUrl: DEFAULT_HUNG_IOTA_LOGO })}
+                      className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-black uppercase flex items-center gap-1.5 hover:bg-emerald-100 transition shadow-xs"
+                      title="Sử dụng logo thương hiệu chuẩn nền trắng sắc nét của Nội Thất Hùng Iota"
                    >
-                      Logo gốc Hùng Iota
+                      Logo chuẩn nền trắng
                    </button>
                    {formData.logoUrl && (
                       <button 

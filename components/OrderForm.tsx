@@ -1,11 +1,13 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Order, OrderItem, OrderStatus, Customer, Supplier, ShippingUnit, Product, UserAccount } from '../types';
-import { Plus, Trash2, X, Image as ImageIcon, Calendar, Ruler, Tag, Truck, Receipt, Calculator, Building, Palette, ListChecks, AlertTriangle, Activity, Wallet, Mail, Clock, Hash, User, Package, HandCoins, CreditCard, Banknote, Search, Check, Phone } from 'lucide-react';
+import { Plus, Trash2, X, Image as ImageIcon, Calendar, Ruler, Tag, Truck, Receipt, Calculator, Building, Palette, ListChecks, AlertTriangle, Activity, Wallet, Mail, Clock, Hash, User, Package, HandCoins, CreditCard, Banknote, Search, Check, Phone, RotateCw } from 'lucide-react';
 import { compressImage } from '../lib/imageUtils';
+import { generateNextOrderId } from '../lib/orderUtils';
 
 interface OrderFormProps {
   order?: Order;
+  orders?: Order[];
   customers: Customer[];
   suppliers: Supplier[];
   shippingUnits: ShippingUnit[];
@@ -15,7 +17,7 @@ interface OrderFormProps {
   onClose: () => void;
 }
 
-const OrderForm: React.FC<OrderFormProps> = ({ order, customers, suppliers, shippingUnits, products = [], users, onSave, onClose }) => {
+const OrderForm: React.FC<OrderFormProps> = ({ order, orders = [], customers, suppliers, shippingUnits, products = [], users, onSave, onClose }) => {
   const [formData, setFormData] = useState<Partial<Order>>(() => {
     if (order) {
       return {
@@ -29,7 +31,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ order, customers, suppliers, ship
       };
     }
     return {
-      id: `HI${Math.floor(1000 + Math.random() * 9000)}`,
+      id: generateNextOrderId(orders),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       customerId: '',
@@ -309,7 +311,26 @@ const OrderForm: React.FC<OrderFormProps> = ({ order, customers, suppliers, ship
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 border-b pb-4 pr-16 gap-4">
           <h2 className="text-2xl md:text-3xl font-black text-slate-800 flex items-center gap-3 flex-wrap">
             {order ? 'Chỉnh sửa đơn' : 'Tạo đơn mới'}
-            <span className="text-sm font-medium text-slate-400 bg-slate-100 px-3 py-1 rounded-full">{formData.id}</span>
+            <div className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-3 py-1 rounded-xl">
+              <span className="text-[11px] font-bold text-blue-500 uppercase tracking-wider">Mã đơn:</span>
+              <input
+                type="text"
+                value={formData.id || ''}
+                onChange={e => setFormData({ ...formData, id: e.target.value.trim().toUpperCase() })}
+                className="w-24 bg-transparent font-black text-blue-700 outline-none text-sm uppercase"
+                title="Mã đơn hàng theo quy chuẩn HI (tăng dần)"
+              />
+              {!order && (
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, id: generateNextOrderId(orders) }))}
+                  title="Sinh lại mã đơn theo thứ tự tăng dần chuẩn HI"
+                  className="p-1 hover:bg-blue-100 text-blue-600 rounded-lg transition"
+                >
+                  <RotateCw className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </h2>
           <div className="flex items-center gap-4 bg-slate-50 p-2 px-4 rounded-2xl border w-full md:w-auto">
             <Activity className={`w-5 h-5 ${getStatusColor(formData.status as OrderStatus)}`} />

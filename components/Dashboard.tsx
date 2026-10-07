@@ -7,7 +7,7 @@ import { Order, OrderStatus } from '../types';
 import { 
   TrendingUp, ShoppingBag, Truck, CheckCircle, AlertCircle, AlertTriangle, 
   Phone, Eye, Edit3, Search, Calendar, DollarSign, Package, CheckCircle2, Clock,
-  Layers
+  Layers, CalendarClock
 } from 'lucide-react';
 import { Pagination } from './Pagination';
 
@@ -32,6 +32,39 @@ export const getOrderFinancials = (order: Order) => {
     deposit,
     remaining
   };
+};
+
+// Helper tính khoảng cách số ngày còn lại đến ngày giao hàng (so với hôm nay)
+export const getDaysUntilDelivery = (deliveryDate?: string): number | null => {
+  if (!deliveryDate) return null;
+  const clean = deliveryDate.trim();
+  const datePart = clean.split('T')[0];
+  const parts = datePart.split('-');
+  
+  let targetDate: Date;
+  if (parts.length === 3) {
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    const d = parseInt(parts[2], 10);
+    targetDate = new Date(y, m, d);
+  } else {
+    targetDate = new Date(clean);
+  }
+
+  if (isNaN(targetDate.getTime())) return null;
+
+  targetDate.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const diffMs = targetDate.getTime() - today.getTime();
+  return Math.round(diffMs / (1000 * 60 * 60 * 24));
+};
+
+// Helper kiểm tra đơn có cách ngày giao 1-2 ngày nữa hay không
+export const isDueIn1To2Days = (deliveryDate?: string): boolean => {
+  const days = getDaysUntilDelivery(deliveryDate);
+  return days !== null && days >= 1 && days <= 2;
 };
 
 // Helper kiểm tra xem ngày đặt hàng (orderDate) có thuộc tháng hiện tại không (tính từ ngày 01 tới hết tháng)
@@ -67,6 +100,8 @@ export const isOrderInSelectedMonth = (orderDate?: string, targetYM?: string): b
   return false;
 };
 
+export type DashboardTab = 'shipping' | 'processing' | 'upcoming';
+
 const Dashboard: React.FC<DashboardProps> = ({ orders, onViewOrder, onEditOrder }) => {
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -80,8 +115,11 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, onViewOrder, onEditOrder 
     );
   }, [orders]);
 
-  // Bộ lọc trạng thái bảng: Chỉ gồm 2 tab: 'shipping' (Đang giao hàng - tức đơn chưa thanh toán) và 'processing' (Đang sản xuất)
-  const [statusFilter, setStatusFilter] = useState<'shipping' | 'processing'>('shipping');
+  // Bộ lọc trạng thái bảng gồm 3 tab:
+  // 1. 'shipping': Đang giao hàng (Đơn chưa thanh toán)
+  // 2. 'processing': Đang sản xuất
+  // 3. 'upcoming': Đơn hàng cách ngày giao 1-2 ngày nữa
+  const [statusFilter, setStatusFilter] = useState<DashboardTab>('shipping');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
@@ -111,6 +149,15 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, onViewOrder, onEditOrder 
         acc.shippingDeposit += deposit;
         acc.shippingRemaining += remaining;
       }
+
+      // Thống kê đơn cách ngày giao 1-2 ngày nữa
+      if (isDueIn1To2Days(order.deliveryDate)) {
+        acc.upcomingCount++;
+        acc.upcomingValue += grandTotal;
+        acc.upcomingDeposit += deposit;
+        acc.upcomingRemaining += remaining;
+      }
+
       return acc;
     }, {
       productionCount: 0,
@@ -120,7 +167,11 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, onViewOrder, onEditOrder 
       shippingCount: 0,
       shippingValue: 0,
       shippingDeposit: 0,
-      shippingRemaining: 0
+      shippingRemaining: 0,
+      upcomingCount: 0,
+      upcomingValue: 0,
+      upcomingDeposit: 0,
+      upcomingRemaining: 0
     });
   }, [activeOrders]);
 
@@ -169,9 +220,10 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, onViewOrder, onEditOrder 
   // =========================================================================
   const filteredOrders = useMemo(() => {
     return activeOrders.filter(order => {
-      // Lọc theo trạng thái tab: 'shipping' (Đang giao hàng) hoặc 'processing' (Đang sản xuất)
+      // Lọc theo trạng thái tab: 'shipping', 'processing', 'upcoming'
       if (statusFilter === 'processing' && order.status !== OrderStatus.PROCESSING) return false;
       if (statusFilter === 'shipping' && order.status !== OrderStatus.SHIPPING) return false;
+      if (statusFilter === 'upcoming' && !isDueIn1To2Days(order.deliveryDate)) return false;
 
       // Lọc theo từ khóa tìm kiếm (Mã đơn, tên khách, số điện thoại, tên sản phẩm)
       if (searchTerm.trim()) {
@@ -282,10 +334,8 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, onViewOrder, onEditOrder 
         </div>
       </div>
 
-      {/* 2 THẺ ĐẠI DIỆN CHO 2 TRẠNG THÁI: LẤY THEO TỔNG ĐƠN */}
-      {/* Thẻ 1: Đang giao hàng (Đơn chưa thanh toán) - Lấy ở tổng đơn */}
-      {/* Thẻ 2: Đang sản xuất - Lấy ở tổng đơn */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* 3 THẺ ĐẠI DIỆN CHO CÁC TRẠNG THÁI / TAB THEO DÕI: LẤY THEO TỔNG ĐƠN */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Thẻ 1: Đang giao hàng (Đơn chưa thanh toán) */}
         <div 
           onClick={() => { setStatusFilter('shipping'); setCurrentPage(1); }}
@@ -302,7 +352,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, onViewOrder, onEditOrder 
             <div>
               <div className="flex items-center gap-2">
                 <p className="text-xs font-black text-amber-800 uppercase tracking-widest">
-                  Đang giao hàng (Đơn chưa thanh toán)
+                  Đang giao hàng (Chưa thanh toán)
                 </p>
                 {statusFilter === 'shipping' && (
                   <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-600 text-white">Đang chọn</span>
@@ -317,7 +367,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, onViewOrder, onEditOrder 
             </div>
           </div>
           <div className="text-left sm:text-right pt-2 sm:pt-0 border-t sm:border-t-0 border-amber-200/50">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tổng tiền cần thu (tổng đơn)</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tổng cần thu</p>
             <p className="text-base md:text-lg font-black text-rose-600 tabular-nums">{allActiveStats.shippingRemaining.toLocaleString()} đ</p>
             <p className="text-[10px] text-slate-500 font-bold mt-0.5">
               Tổng giá trị: {allActiveStats.shippingValue.toLocaleString()} đ
@@ -354,10 +404,49 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, onViewOrder, onEditOrder 
             </div>
           </div>
           <div className="text-left sm:text-right pt-2 sm:pt-0 border-t sm:border-t-0 border-blue-100">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tổng giá trị tiền hàng</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tổng tiền hàng</p>
             <p className="text-base md:text-lg font-black text-slate-800 tabular-nums">{allActiveStats.productionValue.toLocaleString()} đ</p>
             <p className="text-[10px] text-emerald-600 font-bold mt-0.5">
               Đã cọc: {allActiveStats.productionDeposit.toLocaleString()} đ
+            </p>
+          </div>
+        </div>
+
+        {/* Thẻ 3: Cách ngày giao 1-2 ngày nữa */}
+        <div 
+          onClick={() => { setStatusFilter('upcoming'); setCurrentPage(1); }}
+          className={`p-6 rounded-2xl shadow-sm border transition cursor-pointer ${
+            statusFilter === 'upcoming' 
+              ? 'bg-rose-50/90 border-rose-400 ring-2 ring-rose-500/20' 
+              : 'bg-white border-rose-100 hover:border-rose-300'
+          } flex flex-col sm:flex-row sm:items-center justify-between gap-4`}
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-13 h-13 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 shadow-xs">
+              <CalendarClock className="w-7 h-7" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-black text-rose-800 uppercase tracking-widest">
+                  Cách ngày giao 1-2 ngày
+                </p>
+                {statusFilter === 'upcoming' && (
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-600 text-white">Đang chọn</span>
+                )}
+              </div>
+              <p className="text-2xl md:text-3xl font-black text-rose-700 tabular-nums mt-0.5">
+                {allActiveStats.upcomingCount} <span className="text-xs font-bold text-slate-400">đơn (tổng đơn)</span>
+              </p>
+              <p className="text-[10px] text-rose-600 font-bold mt-0.5">
+                Lịch hẹn giao trong 1-2 ngày tới
+              </p>
+            </div>
+          </div>
+          <div className="text-left sm:text-right pt-2 sm:pt-0 border-t sm:border-t-0 border-rose-100">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tổng giá trị</p>
+            <p className="text-base md:text-lg font-black text-rose-700 tabular-nums">{allActiveStats.upcomingValue.toLocaleString()} đ</p>
+            <p className="text-[10px] text-slate-500 font-bold mt-0.5">
+              Cần thu: {allActiveStats.upcomingRemaining.toLocaleString()} đ
             </p>
           </div>
         </div>
@@ -369,20 +458,38 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, onViewOrder, onEditOrder 
       {/* ======================================================== */}
       <div className="bg-white rounded-[2.5rem] border border-slate-200/90 shadow-xl overflow-hidden space-y-6">
         {/* Tiêu đề bảng */}
-        <div className="p-6 md:p-8 bg-gradient-to-r from-slate-50 via-amber-50/30 to-white border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+        <div className={`p-6 md:p-8 bg-gradient-to-r ${
+          statusFilter === 'shipping' 
+            ? 'from-slate-50 via-amber-50/30 to-white' 
+            : statusFilter === 'processing'
+            ? 'from-slate-50 via-blue-50/30 to-white'
+            : 'from-slate-50 via-rose-50/30 to-white'
+        } border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6`}>
           <div className="flex items-start gap-4">
             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shrink-0 mt-0.5 text-white ${
-              statusFilter === 'shipping' ? 'bg-amber-600 shadow-amber-200' : 'bg-blue-600 shadow-blue-200'
+              statusFilter === 'shipping' 
+                ? 'bg-amber-600 shadow-amber-200' 
+                : statusFilter === 'processing'
+                ? 'bg-blue-600 shadow-blue-200'
+                : 'bg-rose-600 shadow-rose-200'
             }`}>
-              {statusFilter === 'shipping' ? <Truck className="w-7 h-7" /> : <Package className="w-7 h-7" />}
+              {statusFilter === 'shipping' ? <Truck className="w-7 h-7" /> : statusFilter === 'processing' ? <Package className="w-7 h-7" /> : <CalendarClock className="w-7 h-7" />}
             </div>
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h3 className="text-xl md:text-2xl font-black text-slate-800 uppercase tracking-tight">
-                  {statusFilter === 'shipping' ? 'Đơn hàng đang giao hàng (Đơn chưa thanh toán)' : 'Đơn hàng đang sản xuất tại xưởng'}
+                  {statusFilter === 'shipping' 
+                    ? 'Đơn hàng đang giao hàng (Đơn chưa thanh toán)' 
+                    : statusFilter === 'processing'
+                    ? 'Đơn hàng đang sản xuất tại xưởng'
+                    : 'Đơn hàng cách ngày giao 1-2 ngày nữa'}
                 </h3>
                 <span className={`px-3 py-1 text-xs font-black uppercase rounded-full shadow-2xs ${
-                  statusFilter === 'shipping' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-700'
+                  statusFilter === 'shipping' 
+                    ? 'bg-amber-100 text-amber-800' 
+                    : statusFilter === 'processing'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-rose-100 text-rose-800'
                 }`}>
                   {filteredOrders.length} đơn (tổng đơn)
                 </span>
@@ -390,7 +497,9 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, onViewOrder, onEditOrder 
               <p className="text-xs text-slate-500 font-bold mt-1">
                 {statusFilter === 'shipping'
                   ? 'Danh sách toàn bộ các đơn đang giao hàng chưa thanh toán cần thu tiền'
-                  : 'Danh sách toàn bộ các đơn hàng nội thất đang trong tiến trình gia công sản xuất tại xưởng'}
+                  : statusFilter === 'processing'
+                  ? 'Danh sách toàn bộ các đơn hàng nội thất đang trong tiến trình gia công sản xuất tại xưởng'
+                  : 'Danh sách các đơn hàng có lịch hẹn giao khách cách 1 đến 2 ngày nữa để chủ động điều phối'}
               </p>
             </div>
           </div>
@@ -399,25 +508,45 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, onViewOrder, onEditOrder 
           <div className="flex items-center gap-4 bg-white p-4 px-6 rounded-2xl border border-slate-200 shadow-sm w-full lg:w-auto justify-between lg:justify-start">
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                {statusFilter === 'shipping' ? 'Tổng tiền cần thu (tổng đơn)' : 'Tổng tiền hàng sản xuất (tổng đơn)'}
+                {statusFilter === 'shipping' 
+                  ? 'Tổng tiền cần thu (tổng đơn)' 
+                  : statusFilter === 'processing'
+                  ? 'Tổng tiền hàng sản xuất (tổng đơn)'
+                  : 'Tổng giá trị đơn sắp giao'}
               </p>
               <p className={`text-2xl md:text-3xl font-black tabular-nums ${
-                statusFilter === 'shipping' ? 'text-rose-600' : 'text-blue-700'
+                statusFilter === 'shipping' 
+                  ? 'text-rose-600' 
+                  : statusFilter === 'processing'
+                  ? 'text-blue-700'
+                  : 'text-rose-700'
               }`}>
-                {(statusFilter === 'shipping' ? allActiveStats.shippingRemaining : allActiveStats.productionValue).toLocaleString()} <span className="text-sm">đ</span>
+                {(statusFilter === 'shipping' 
+                  ? allActiveStats.shippingRemaining 
+                  : statusFilter === 'processing'
+                  ? allActiveStats.productionValue 
+                  : allActiveStats.upcomingValue).toLocaleString()} <span className="text-sm">đ</span>
               </p>
             </div>
             <div className="h-10 w-px bg-slate-200 hidden sm:block"></div>
             <div className="text-right hidden sm:block">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Khách đã cọc</p>
-              <p className="text-sm font-bold text-emerald-600 tabular-nums">
-                {(statusFilter === 'shipping' ? allActiveStats.shippingDeposit : allActiveStats.productionDeposit).toLocaleString()} đ
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                {statusFilter === 'upcoming' ? 'Cần thu' : 'Khách đã cọc'}
+              </p>
+              <p className={`text-sm font-bold tabular-nums ${
+                statusFilter === 'upcoming' ? 'text-rose-600' : 'text-emerald-600'
+              }`}>
+                {(statusFilter === 'shipping' 
+                  ? allActiveStats.shippingDeposit 
+                  : statusFilter === 'processing'
+                  ? allActiveStats.productionDeposit
+                  : allActiveStats.upcomingRemaining).toLocaleString()} đ
               </p>
             </div>
           </div>
         </div>
 
-        {/* Thanh công cụ: Chọn 2 tab Đang giao hàng (Đơn chưa thanh toán) & Đang sản xuất */}
+        {/* Thanh công cụ: Chọn 3 tab */}
         <div className="px-6 md:px-8 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
           <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-2xl self-start flex-wrap">
             <button
@@ -442,6 +571,17 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, onViewOrder, onEditOrder 
               <Package className="w-4 h-4 text-blue-600" />
               Đang sản xuất ({allActiveStats.productionCount})
             </button>
+            <button
+              onClick={() => { setStatusFilter('upcoming'); setCurrentPage(1); }}
+              className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition flex items-center gap-2 ${
+                statusFilter === 'upcoming' 
+                  ? 'bg-white text-rose-700 shadow-sm border border-slate-200/80' 
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <CalendarClock className="w-4 h-4 text-rose-600" />
+              Cách ngày giao 1-2 ngày ({allActiveStats.upcomingCount})
+            </button>
           </div>
 
           {/* Ô tìm kiếm nhanh trong bảng */}
@@ -463,7 +603,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, onViewOrder, onEditOrder 
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-y border-slate-100">
-                  <th className="px-6 py-4">Mã đơn & Trạng thái</th>
+                  <th className="px-6 py-4">Mã đơn</th>
                   <th className="px-6 py-4">Khách hàng & Liên hệ</th>
                   <th className="px-6 py-4">Sản phẩm</th>
                   <th className="px-6 py-4">Thời gian</th>
@@ -479,24 +619,11 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, onViewOrder, onEditOrder 
 
                   return (
                     <tr key={order.id} className="hover:bg-amber-50/20 transition group">
-                      {/* Mã đơn & Trạng thái */}
+                      {/* Mã đơn (đã bỏ trạng thái bên dưới theo yêu cầu) */}
                       <td className="px-6 py-5 align-top">
-                        <div className="space-y-1.5">
-                          <span className="font-black text-blue-600 text-base block group-hover:underline">
-                            {order.id}
-                          </span>
-                          <span 
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase border ${
-                              isProcessing 
-                                ? 'bg-blue-50 text-blue-700 border-blue-200' 
-                                : 'bg-amber-50 text-amber-800 border-amber-200'
-                            }`}
-                            title={isProcessing ? 'Đang sản xuất' : 'Đơn đang giao hàng tức là đơn chưa thanh toán'}
-                          >
-                            {isProcessing ? <Package className="w-3 h-3 text-blue-600" /> : <Truck className="w-3 h-3 text-amber-600" />}
-                            {isProcessing ? order.status : 'Đang giao hàng (Chưa thanh toán)'}
-                          </span>
-                        </div>
+                        <span className="font-black text-blue-600 text-base block group-hover:underline">
+                          {order.id}
+                        </span>
                       </td>
 
                       {/* Khách hàng & Liên hệ */}
@@ -561,6 +688,20 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, onViewOrder, onEditOrder 
                               <span>Giao: {new Date(order.deliveryDate).toLocaleDateString('vi-VN')}</span>
                             </div>
                           )}
+                          {(() => {
+                            const days = getDaysUntilDelivery(order.deliveryDate);
+                            if (days !== null && days >= 1 && days <= 2) {
+                              return (
+                                <div className="mt-1">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200">
+                                    <CalendarClock className="w-3 h-3 text-rose-500 shrink-0" />
+                                    Cách ngày giao {days} ngày ({days === 1 ? 'Ngày mai' : 'Ngày kia'})
+                                  </span>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                       </td>
 
@@ -636,14 +777,18 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, onViewOrder, onEditOrder 
               <p className="text-slate-800 font-black text-base uppercase tracking-tight">
                 {statusFilter === 'shipping' 
                   ? 'Không có đơn hàng nào đang giao (chưa thanh toán)' 
-                  : 'Không có đơn hàng nào đang sản xuất'}
+                  : statusFilter === 'processing'
+                  ? 'Không có đơn hàng nào đang sản xuất'
+                  : 'Không có đơn hàng nào cách ngày giao 1-2 ngày nữa'}
               </p>
               <p className="text-slate-400 text-xs max-w-md mx-auto">
                 {searchTerm 
                   ? 'Không tìm thấy đơn hàng nào khớp với từ khóa tìm kiếm.'
                   : statusFilter === 'shipping'
                     ? 'Hiện tại không có đơn hàng nào đang trong quá trình giao hàng (chưa thanh toán).'
-                    : 'Hiện tại không có đơn hàng nào đang trong tiến trình gia công sản xuất tại xưởng.'}
+                    : statusFilter === 'processing'
+                    ? 'Hiện tại không có đơn hàng nào đang trong tiến trình gia công sản xuất tại xưởng.'
+                    : 'Hiện tại không có đơn hàng nào có lịch hẹn giao khách trong khoảng 1-2 ngày tới.'}
               </p>
             </div>
           )}

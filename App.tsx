@@ -18,6 +18,7 @@ import { Plus, Search, Eye, X, ImageIcon, Camera, Trash2, ChevronLeft, ChevronRi
 import { useFirestoreStore, firestoreMutations } from './lib/useFirestoreStore';
 import { auth } from './lib/firebase';
 import { compareNewestFirst, compareOrdersNewest } from './lib/sortUtils';
+import { DEFAULT_HUNG_IOTA_LOGO } from './lib/logo';
 
 const DEFAULT_COMPANY: CompanySettings = {
   name: "NỘI THẤT HÙNG IOTA",
@@ -28,7 +29,7 @@ const DEFAULT_COMPANY: CompanySettings = {
   bankAccount: "1903567890123",
   bankName: "Techcombank",
   phone: "0965.803.688",
-  logoUrl: "https://hungiota.com/wp-content/uploads/2019/08/logo-Hung-iota-57.png" 
+  logoUrl: DEFAULT_HUNG_IOTA_LOGO 
 };
 
 const EMPTY_COMPANY: CompanySettings = {
@@ -163,11 +164,14 @@ const App: React.FC = () => {
   const currentCompanySettings = useMemo(() => {
     if (!currentUser) return EMPTY_COMPANY;
     const settings = allSettings[currentUser.id] || DEFAULT_COMPANY;
-    // Tự động nâng cấp nếu đang dùng URL logo cũ bị lỗi 404
-    if (!settings.logoUrl || settings.logoUrl.includes('logo-hungiota-dep-mien-che.png')) {
+    // Tự động nâng cấp nếu đang dùng URL logo cũ bị lỗi hoặc logo đen
+    if (!settings.logoUrl || 
+        settings.logoUrl.includes('logo-hungiota-dep-mien-che.png') || 
+        settings.logoUrl.includes('logo-Hung-iota-57.png') || 
+        settings.logoUrl.includes('logo-footer.png')) {
       return {
         ...settings,
-        logoUrl: DEFAULT_COMPANY.logoUrl
+        logoUrl: DEFAULT_HUNG_IOTA_LOGO
       };
     }
     return settings;
@@ -974,7 +978,7 @@ const App: React.FC = () => {
     <Layout activeTab={activeTab} setActiveTab={(tab) => { setActiveTab(tab); }} onLogout={handleLogout} user={currentUser}>
       {renderContent()}
       {notification && <Toast message={notification.message} type={notification.type} onClose={() => setNotification(null)} />}
-      {isFormOpen && <OrderForm order={editingOrder} customers={customers} suppliers={suppliers} shippingUnits={shippingUnits} products={products} users={users} onSave={handleSaveOrder} onClose={() => setIsFormOpen(false)} />}
+      {isFormOpen && <OrderForm order={editingOrder} orders={orders} customers={customers} suppliers={suppliers} shippingUnits={shippingUnits} products={products} users={users} onSave={handleSaveOrder} onClose={() => setIsFormOpen(false)} />}
       {currentPreviewOrder && (
         <DocumentPreview 
           order={currentPreviewOrder} 
