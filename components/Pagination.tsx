@@ -7,14 +7,15 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
   itemsPerPage?: number;
   totalItems?: number;
-  activeColor?: 'blue' | 'emerald' | 'violet' | 'amber';
+  activeColor?: 'blue' | 'emerald' | 'violet' | 'amber' | 'indigo';
 }
 
 const colorClasses = {
   blue: 'bg-blue-600 text-white shadow-md shadow-blue-600/20',
   emerald: 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20',
   violet: 'bg-violet-600 text-white shadow-md shadow-violet-600/20',
-  amber: 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
+  amber: 'bg-amber-600 text-white shadow-md shadow-amber-600/20',
+  indigo: 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
 };
 
 export const Pagination: React.FC<PaginationProps> = ({ 

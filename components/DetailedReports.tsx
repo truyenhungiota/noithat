@@ -50,12 +50,17 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
   const workshopPerPage = 15;
   const [workshopSearch, setWorkshopSearch] = useState('');
 
+  // State cho Tab Báo cáo VC Xưởng
+  const [shippingPage, setShippingPage] = useState(1);
+  const shippingPerPage = 15;
+
   const isAdmin = currentUser.role === UserRole.ADMIN;
 
   useEffect(() => {
     setCurrentPage(1);
     setProductPage(1);
     setWorkshopPage(1);
+    setShippingPage(1);
   }, [startDate, endDate, selectedSupplierId, selectedShippingId, activeSubTab, selectedShopId, supplierPaymentFilter, shippingPaymentFilter, statusFilter, productSearch, workshopSearch]);
 
   const formatDateTime = (dt?: string) => {
@@ -835,9 +840,19 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
   const paginatedOrders = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return mainFilteredData.slice(start, start + itemsPerPage);
-  }, [mainFilteredData, currentPage]);
+  }, [mainFilteredData, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(mainFilteredData.length / itemsPerPage);
+
+  const factoryShippingOrders = useMemo(() => {
+    return mainFilteredData.filter(o => o.factoryShippingCost && o.factoryShippingCost > 0);
+  }, [mainFilteredData]);
+
+  const totalShippingPages = Math.ceil(factoryShippingOrders.length / shippingPerPage);
+  const paginatedShippingOrders = useMemo(() => {
+    const start = (shippingPage - 1) * shippingPerPage;
+    return factoryShippingOrders.slice(start, start + shippingPerPage);
+  }, [factoryShippingOrders, shippingPage, shippingPerPage]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
@@ -1147,94 +1162,86 @@ const DetailedReports: React.FC<DetailedReportsProps> = ({ orders, suppliers, sh
               </table>
             </div>
             
-            {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-2 py-6 border-t border-slate-50 no-print">
-                <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="p-2 bg-slate-50 rounded-xl hover:bg-blue-50 transition disabled:opacity-30">
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <div className="flex gap-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                     let p = currentPage;
-                     if (totalPages <= 5) p = i + 1;
-                     else if (currentPage <= 3) p = i + 1;
-                     else if (currentPage >= totalPages - 2) p = totalPages - 4 + i;
-                     else p = currentPage - 2 + i;
-
-                     return (
-                       <button 
-                         key={p} 
-                         onClick={() => setCurrentPage(p)} 
-                         className={`w-10 h-10 rounded-xl font-bold text-xs transition ${currentPage === p ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
-                       >
-                         {p}
-                       </button>
-                     );
-                  })}
-                </div>
-                <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="p-2 bg-slate-50 rounded-xl hover:bg-blue-50 transition disabled:opacity-30">
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
-            )}
+            {/* Phân trang cho Báo cáo chung (Tài chính) */}
+            <Pagination 
+              currentPage={currentPage} 
+              totalPages={totalPages} 
+              onPageChange={setCurrentPage} 
+              itemsPerPage={itemsPerPage} 
+              totalItems={mainFilteredData.length} 
+              activeColor="blue" 
+            />
           </>
         ) : activeSubTab === 'factoryShipping' ? (
-          <div className="overflow-x-auto w-full">
-            <table className="w-full text-left min-w-[850px]">
-              <thead className="bg-slate-50 border-b">
-                <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                  <th className="px-4 py-4 whitespace-nowrap">Ngày đơn</th>
-                  <th className="px-4 py-4 whitespace-nowrap">Mã đơn</th>
-                  <th className="px-4 py-4">Khách hàng</th>
-                  <th className="px-4 py-4">Nhà xưởng</th>
-                  <th className="px-4 py-4 text-right whitespace-nowrap">Phí VC xưởng (đ)</th>
-                  <th className="px-4 py-4 text-center whitespace-nowrap">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {mainFilteredData.filter(o => o.factoryShippingCost && o.factoryShippingCost > 0).map(order => (
-                  <tr key={order.id} className="hover:bg-slate-50 transition cursor-pointer group" onClick={() => onViewOrder(order)}>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <p className="font-bold text-slate-800 text-sm tabular-nums">{order.orderDate.split('T')[0]}</p>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <p className="font-black text-blue-600 text-sm group-hover:underline">{order.id}</p>
-                    </td>
-                    <td className="px-4 py-4">
-                      <p className="font-bold text-slate-800 text-sm">{order.customerName}</p>
-                    </td>
-                    <td className="px-4 py-4">
-                      <p className="font-bold text-slate-800 text-sm">{order.supplierName}</p>
-                    </td>
-                    <td className="px-4 py-4 text-right whitespace-nowrap">
-                      <p className="font-black text-indigo-600 tabular-nums">{order.factoryShippingCost?.toLocaleString()} đ</p>
-                    </td>
-                    <td className="px-4 py-4 text-center whitespace-nowrap">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                         order.isShippingPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                       }`}>
-                         {order.isShippingPaid ? 'Đã thanh toán' : 'Chưa thanh toán'}
-                       </span>
-                    </td>
+          <div>
+            <div className="overflow-x-auto w-full">
+              <table className="w-full text-left min-w-[850px]">
+                <thead className="bg-slate-50 border-b">
+                  <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                    <th className="px-4 py-4 whitespace-nowrap">Ngày đơn</th>
+                    <th className="px-4 py-4 whitespace-nowrap">Mã đơn</th>
+                    <th className="px-4 py-4">Khách hàng</th>
+                    <th className="px-4 py-4">Nhà xưởng</th>
+                    <th className="px-4 py-4 text-right whitespace-nowrap">Phí VC xưởng (đ)</th>
+                    <th className="px-4 py-4 text-center whitespace-nowrap">Trạng thái</th>
                   </tr>
-                ))}
-                {mainFilteredData.filter(o => o.factoryShippingCost && o.factoryShippingCost > 0).length === 0 && (
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {paginatedShippingOrders.map(order => (
+                    <tr key={order.id} className="hover:bg-slate-50 transition cursor-pointer group" onClick={() => onViewOrder(order)}>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <p className="font-bold text-slate-800 text-sm tabular-nums">{order.orderDate.split('T')[0]}</p>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <p className="font-black text-blue-600 text-sm group-hover:underline">{order.id}</p>
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className="font-bold text-slate-800 text-sm">{order.customerName}</p>
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className="font-bold text-slate-800 text-sm">{order.supplierName}</p>
+                      </td>
+                      <td className="px-4 py-4 text-right whitespace-nowrap">
+                        <p className="font-black text-indigo-600 tabular-nums">{order.factoryShippingCost?.toLocaleString()} đ</p>
+                      </td>
+                      <td className="px-4 py-4 text-center whitespace-nowrap">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                           order.isShippingPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                         }`}>
+                           {order.isShippingPaid ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                         </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {factoryShippingOrders.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center text-slate-400 font-bold text-sm">
+                        Không có dữ liệu phí vận chuyển xưởng trong khoảng thời gian này
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+                <tfoot className="bg-indigo-50/50">
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-slate-400 font-bold text-sm">
-                      Không có dữ liệu phí vận chuyển xưởng trong khoảng thời gian này
+                    <td colSpan={4} className="px-6 py-4 text-right font-black text-slate-600 uppercase text-xs">Tổng Phí Vận Chuyển Xưởng:</td>
+                    <td className="px-6 py-4 text-right font-black text-indigo-700 text-lg">
+                      {mainFilteredData.reduce((sum, o) => sum + (o.factoryShippingCost || 0), 0).toLocaleString()} đ
                     </td>
+                    <td></td>
                   </tr>
-                )}
-              </tbody>
-              <tfoot className="bg-indigo-50/50">
-                <tr>
-                  <td colSpan={4} className="px-6 py-4 text-right font-black text-slate-600 uppercase text-xs">Tổng Phí Vận Chuyển Xưởng:</td>
-                  <td className="px-6 py-4 text-right font-black text-indigo-700 text-lg">
-                    {mainFilteredData.reduce((sum, o) => sum + (o.factoryShippingCost || 0), 0).toLocaleString()} đ
-                  </td>
-                  <td></td>
-                </tr>
-              </tfoot>
-            </table>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* Phân trang cho Báo cáo Phí VC Xưởng */}
+            <Pagination 
+              currentPage={shippingPage} 
+              totalPages={totalShippingPages} 
+              onPageChange={setShippingPage} 
+              itemsPerPage={shippingPerPage} 
+              totalItems={factoryShippingOrders.length} 
+              activeColor="indigo" 
+            />
           </div>
         ) : activeSubTab === 'excelExport' ? (
           /* BÁO CÁO BÁN HÀNG */
